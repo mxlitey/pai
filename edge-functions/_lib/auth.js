@@ -64,10 +64,39 @@ export function extractToken(request) {
 
 // 鉴权中间件：校验通过返回 null，失败返回 401 Response
 export async function requireAuth(context) {
-  const password = context.env?.ADMIN_PASSWORD
-  if (!password) {
+  try {
+    // 兼容多种环境变量访问方式
+    const password = context.env?.ADMIN_PASSWORD || context.ADMIN_PASSWORD
+    if (!password) {
+      return new Response(
+        JSON.stringify({ code: 1, message: '服务端未配置管理密码（ADMIN_PASSWORD 环境变量）', data: null }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+          },
+        },
+      )
+    }
+    const token = extractToken(context.request)
+    const ok = await verifyToken(token, password)
+    if (!ok) {
+      return new Response(
+        JSON.stringify({ code: 401, message: '未登录或登录已过期，请重新登录', data: null }),
+        {
+          status: 401,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Access-Control-Allow-Origin': '*',
+          },
+        },
+      )
+    }
+    return null
+  } catch (e) {
     return new Response(
-      JSON.stringify({ code: 1, message: '服务端未配置管理密码（ADMIN_PASSWORD 环境变量）', data: null }),
+      JSON.stringify({ code: 1, message: '鉴权异常：' + (e?.message || String(e)), data: null }),
       {
         status: 500,
         headers: {
@@ -77,19 +106,4 @@ export async function requireAuth(context) {
       },
     )
   }
-  const token = extractToken(context.request)
-  const ok = await verifyToken(token, password)
-  if (!ok) {
-    return new Response(
-      JSON.stringify({ code: 401, message: '未登录或登录已过期，请重新登录', data: null }),
-      {
-        status: 401,
-        headers: {
-          'Content-Type': 'application/json; charset=utf-8',
-          'Access-Control-Allow-Origin': '*',
-        },
-      },
-    )
-  }
-  return null
 }

@@ -13,31 +13,39 @@ async function readBody(request) {
 }
 
 export default async function onRequestPost(context) {
-  const { request, env } = context
-  const password = env?.ADMIN_PASSWORD
+  try {
+    const { request, env } = context
+    // 兼容多种环境变量访问方式
+    const password = env?.ADMIN_PASSWORD || context.ADMIN_PASSWORD
 
-  if (!password) {
+    if (!password) {
+      return json(
+        { code: 1, message: '服务端未配置管理密码（ADMIN_PASSWORD 环境变量）', data: null },
+        500,
+      )
+    }
+
+    const body = await readBody(request)
+    const { password: input } = body
+
+    if (!input) {
+      return json({ code: 1, message: '请输入密码', data: null }, 400)
+    }
+
+    if (input !== password) {
+      return json({ code: 1, message: '密码错误', data: null }, 401)
+    }
+
+    const token = await signToken(password)
+    return json({
+      code: 0,
+      message: '登录成功',
+      data: { token },
+    })
+  } catch (e) {
     return json(
-      { code: 1, message: '服务端未配置管理密码（ADMIN_PASSWORD 环境变量）', data: null },
+      { code: 1, message: '服务器错误：' + (e?.message || String(e)), data: null },
       500,
     )
   }
-
-  const body = await readBody(request)
-  const { password: input } = body
-
-  if (!input) {
-    return json({ code: 1, message: '请输入密码', data: null }, 400)
-  }
-
-  if (input !== password) {
-    return json({ code: 1, message: '密码错误', data: null }, 401)
-  }
-
-  const token = await signToken(password)
-  return json({
-    code: 0,
-    message: '登录成功',
-    data: { token },
-  })
 }

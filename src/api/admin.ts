@@ -35,12 +35,12 @@ export async function login(password: string): Promise<ApiResult<{ token: string
       signal: AbortSignal.timeout(10000),
     })
   } catch {
-    throw new Error('网络请求失败，请检查网络连接')
+    return { code: -1, message: '网络请求失败，请检查网络连接', data: null as any }
   }
 
   const contentType = resp.headers.get('content-type') || ''
   if (!contentType.includes('application/json')) {
-    throw new Error('服务暂不可用，请稍后重试')
+    return { code: -1, message: '服务暂不可用，请稍后重试', data: null as any }
   }
 
   const result = await resp.json()
