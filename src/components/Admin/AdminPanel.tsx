@@ -12,6 +12,7 @@ import {
 } from '@/api/admin'
 import { ScheduleEditor } from './ScheduleEditor'
 import { AdvancedAdmin } from './AdvancedAdmin'
+import { StudentAdmin } from './StudentAdmin'
 import { SearchBar } from '@/components/SearchBar'
 import { AdminLogin } from './AdminLogin'
 import { cn } from '@/utils/cn'
@@ -109,6 +110,8 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   const [addingSchedule, setAddingSchedule] = useState(false)
   // 进阶管理二级页面
   const [showAdvanced, setShowAdvanced] = useState(false)
+  // 学员管理二级页面
+  const [showStudentAdmin, setShowStudentAdmin] = useState(false)
 
   // 显示 toast
   const showToast = (type: Toast['type'], message: string) => {
@@ -443,6 +446,21 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     )
   }
 
+  // 学员管理二级页面
+  if (showStudentAdmin) {
+    return (
+      <>
+        <StudentAdmin
+          students={students}
+          busy={busy}
+          onBack={() => setShowStudentAdmin(false)}
+          onDelete={handleDeleteStudent}
+        />
+        {toast && <ToastView toast={toast} />}
+      </>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* 顶部栏 */}
@@ -501,94 +519,25 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* 进阶管理入口 */}
-        <section className="card p-5 border-amber-200 bg-amber-50/30">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-semibold text-sm text-slate-800">进阶管理</div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    种子初始化 · 一键清空 · JSON 数据导入 等批量数据操作
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowAdvanced(true)}
-                  className="btn border border-amber-300 bg-white text-amber-700 hover:bg-amber-100 text-sm"
-                >
-                  进入进阶管理 →
-                </button>
-              </div>
-              <div className="mt-3 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded px-2 py-1.5 inline-flex items-center gap-1">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
-                </svg>
-                非专业人员禁止操作
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 学员管理 */}
+        {/* 学员管理入口 */}
         <section className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-              <span className="w-1 h-4 bg-brand-500 rounded"></span>
-              学员管理
-            </h2>
-            <span className="text-xs text-slate-400">共 {students.length} 名学员</span>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <span className="w-1 h-4 bg-brand-500 rounded"></span>
+                学员管理
+              </h2>
+              <div className="text-xs text-slate-500 mt-1.5 ml-3">
+                查看全部学员，支持删除学员及其排课数据
+              </div>
+            </div>
+            <button
+              onClick={() => setShowStudentAdmin(true)}
+              className="btn-primary text-sm py-1.5 px-3"
+            >
+              进入学员管理 →
+            </button>
           </div>
-
-          {students.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 text-sm">
-              暂无学员数据
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 text-xs">
-                    <th className="text-left py-2 px-2 font-medium">姓名</th>
-                    <th className="text-left py-2 px-2 font-medium">ID</th>
-                    <th className="text-left py-2 px-2 font-medium">年级</th>
-                    <th className="text-left py-2 px-2 font-medium">电话</th>
-                    <th className="text-right py-2 px-2 font-medium">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {students.map((s) => (
-                    <tr
-                      key={s.id}
-                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                    >
-                      <td className="py-2.5 px-2 font-medium text-slate-700">{s.name}</td>
-                      <td className="py-2.5 px-2 text-slate-500 font-mono text-xs">{s.id}</td>
-                      <td className="py-2.5 px-2 text-slate-600">
-                        {s.grade || <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="py-2.5 px-2 text-slate-600">
-                        {s.phone || <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="py-2.5 px-2 text-right">
-                        <button
-                          onClick={() => handleDeleteStudent(s)}
-                          disabled={busy}
-                          className="text-rose-600 hover:text-rose-700 text-xs font-medium disabled:opacity-50"
-                        >
-                          删除
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </section>
 
         {/* 排课管理 */}
@@ -681,6 +630,34 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
               </table>
             </div>
           )}
+        </section>
+
+        {/* 进阶管理入口 */}
+        <section className="card p-5 border-amber-200 bg-amber-50/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-4.5 h-4.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
+                </svg>
+              </div>
+              <div>
+                <div className="font-semibold text-sm text-slate-800">进阶管理</div>
+                <div className="text-xs text-rose-600 mt-0.5 inline-flex items-center gap-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+                  </svg>
+                  非专业人员禁止操作
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowAdvanced(true)}
+              className="btn border border-amber-300 bg-white text-amber-700 hover:bg-amber-100 text-sm"
+            >
+              进入进阶管理 →
+            </button>
+          </div>
         </section>
       </main>
 
