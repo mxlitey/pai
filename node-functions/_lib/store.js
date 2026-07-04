@@ -164,6 +164,42 @@ export async function deleteSchedule(scheduleId, studentId, date) {
   return { deleted: true, count: list.length - filtered.length }
 }
 
+// 删除学员及其所有排课数据
+// 1. 列出并删除该学员的所有月份排课文件
+// 2. 从 students/index.json 中移除该学员
+// 返回 { deletedScheduleFiles, studentRemoved }
+export async function deleteStudentWithSchedules(studentId) {
+  const store = getBlobStore()
+  const deletedKeys = []
+
+  // 1. 删除该学员的所有排课文件
+  const prefix = `schedules/${studentId}/`
+  const result = await store.list({ prefix })
+  const items = result.blobs || []
+  for (const item of items) {
+    try {
+      await store.delete(item.key)
+      deletedKeys.push(item.key)
+    } catch {
+      // 单个删除失败不中断
+    }
+  }
+
+  // 2. 从学员列表中移除
+  const students = await getStudents()
+  const filtered = students.filter((s) => s.id !== studentId)
+  let studentRemoved = false
+  if (filtered.length !== students.length) {
+    await saveStudents(filtered)
+    studentRemoved = true
+  }
+
+  return {
+    deletedScheduleFiles: deletedKeys.length,
+    studentRemoved,
+  }
+}
+
 // ========== 清空所有数据 ==========
 
 // 清空 Blob 存储中的全部数据（学员 + 排课）

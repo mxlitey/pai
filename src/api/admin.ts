@@ -148,3 +148,13 @@ export async function deleteSchedule(
     body: JSON.stringify({ id, studentId, date }),
   })
 }
+
+// 删除学员及其所有排课
+export async function deleteStudent(
+  studentId: string,
+): Promise<ApiResult<{ deletedScheduleFiles: number; studentRemoved: boolean }>> {
+  return request(`${API_BASE}/student-delete`, {
+    method: 'DELETE',
+    body: JSON.stringify({ studentId }),
+  })
+}

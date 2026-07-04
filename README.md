@@ -35,6 +35,7 @@
 - **JSON 数据导入**：支持粘贴文本或上传 `.json` 文件，提供 merge（追加合并，按 id 去重）/ replace（替换清空后写入）两种模式
 - **Excel 数据导入**：通过模板填写后转 JSON 再导入，含字段校验与跨表关联校验
 - **排课列表管理**：按学员查看排课，支持单条编辑与删除
+- **学员管理**：查看全部学员列表，支持删除学员及其所有排课数据（二次确认）
 - **跨月/跨学员迁移**：修改排课日期或学员时自动处理存储路径迁移，空文件自动清理
 
 ### 性能优化
@@ -175,6 +176,7 @@ git push -u origin main
 | POST | `/api/import` | 是 | JSON 数据导入（merge/replace） |
 | PUT | `/api/schedule-update` | 是 | 修改排课（含跨月/跨学员迁移） |
 | DELETE | `/api/schedule-delete` | 是 | 删除单条排课 |
+| DELETE | `/api/student-delete` | 是 | 删除学员及其所有排课 |
 
 ## 项目结构
 
@@ -193,7 +195,8 @@ pai/
 │       ├── clear.js             # 清空数据
 │       ├── import.js            # JSON 导入
 │       ├── schedule-update.js   # 排课修改
-│       └── schedule-delete.js   # 排课删除
+│       ├── schedule-delete.js   # 排课删除
+│       └── student-delete.js    # 学员删除（含其排课）
 ├── scripts/                     # 数据导入工具脚本
 │   ├── seed-data.mjs
 │   ├── generate-excel-template.mjs

@@ -6,6 +6,7 @@ import {
   clearAllData,
   importData,
   deleteSchedule,
+  deleteStudent,
   getToken,
   clearToken,
 } from '@/api/admin'
@@ -343,6 +344,39 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     }
   }
 
+  // 删除学员及其所有排课
+  const handleDeleteStudent = async (student: Student) => {
+    const step1 = confirm(
+      `⚠ 确认删除学员「${student.name}」(${student.id})？\n` +
+      `该操作将同时删除该学员的所有排课数据，且不可恢复！`,
+    )
+    if (!step1) return
+    const step2 = confirm('再次确认：真的要删除该学员及其全部排课吗？')
+    if (!step2) return
+    setBusy(true)
+    try {
+      const result = await deleteStudent(student.id)
+      if (result.code === 0) {
+        const msg = result.data.studentRemoved
+          ? `已删除学员及 ${result.data.deletedScheduleFiles} 个排课文件`
+          : '学员不存在（已清理残留排课文件）'
+        showToast('success', msg)
+        // 若当前选中的学员被删除，清空选择
+        if (selectedStudent?.id === student.id) {
+          setSelectedStudent(null)
+          setSchedules([])
+        }
+        await loadStudents()
+      } else {
+        showToast('error', result.message)
+      }
+    } catch (e) {
+      handleApiError(e as Error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // 编辑保存后刷新
   const handleEditorUpdated = async () => {
     await loadStudents()
@@ -572,6 +606,63 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
               {busy ? '导入中…' : '导入数据'}
             </button>
           </div>
+        </section>
+
+        {/* 学员管理 */}
+        <section className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <span className="w-1 h-4 bg-brand-500 rounded"></span>
+              学员管理
+            </h2>
+            <span className="text-xs text-slate-400">共 {students.length} 名学员</span>
+          </div>
+
+          {students.length === 0 ? (
+            <div className="text-center py-10 text-slate-400 text-sm">
+              暂无学员数据
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 text-xs">
+                    <th className="text-left py-2 px-2 font-medium">姓名</th>
+                    <th className="text-left py-2 px-2 font-medium">ID</th>
+                    <th className="text-left py-2 px-2 font-medium">年级</th>
+                    <th className="text-left py-2 px-2 font-medium">电话</th>
+                    <th className="text-right py-2 px-2 font-medium">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.map((s) => (
+                    <tr
+                      key={s.id}
+                      className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                    >
+                      <td className="py-2.5 px-2 font-medium text-slate-700">{s.name}</td>
+                      <td className="py-2.5 px-2 text-slate-500 font-mono text-xs">{s.id}</td>
+                      <td className="py-2.5 px-2 text-slate-600">
+                        {s.grade || <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="py-2.5 px-2 text-slate-600">
+                        {s.phone || <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="py-2.5 px-2 text-right">
+                        <button
+                          onClick={() => handleDeleteStudent(s)}
+                          disabled={busy}
+                          className="text-rose-600 hover:text-rose-700 text-xs font-medium disabled:opacity-50"
+                        >
+                          删除
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         {/* 排课管理 */}
