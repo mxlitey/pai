@@ -1,7 +1,7 @@
 // 登录验证 API
 // POST /api/auth  body: { password: string }
 // 验证通过返回 token，后续管理请求需携带 Authorization: Bearer <token>
-import { signToken } from '../_lib/auth.js'
+import { signToken, verifyPassword } from '../_lib/auth.js'
 import { json } from '../_lib/store.js'
 
 async function readBody(request) {
@@ -32,7 +32,8 @@ export default async function onRequestPost(context) {
       return json({ code: 1, message: '请输入密码', data: null }, 400)
     }
 
-    if (input !== password) {
+    // 恒定时间比较，防止时序侧信道
+    if (!verifyPassword(input, password)) {
       return json({ code: 1, message: '密码错误', data: null }, 401)
     }
 

@@ -26,6 +26,25 @@ async function hmacSign(password, message) {
   return bufToHex(sig)
 }
 
+// 恒定时间字符串比较，防止时序侧信道攻击
+function constantTimeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false
+  const enc = new TextEncoder()
+  const aBytes = enc.encode(a)
+  const bBytes = enc.encode(b)
+  // 长度不同也走完整比较，避免按长度早退
+  const maxLen = Math.max(aBytes.length, bBytes.length)
+  let diff = 0
+  for (let i = 0; i < maxLen; i++) {
+    const av = i < aBytes.length ? aBytes[i] : 0
+    const bv = i < bBytes.length ? bBytes[i] : 0
+    diff |= av ^ bv
+  }
+  // 长度差异也纳入 diff
+  diff |= aBytes.length ^ bBytes.length
+  return diff === 0
+}
+
 // 签发 token：用密码签名当前时间戳
 export async function signToken(password) {
   const ts = String(Date.now())
@@ -44,15 +63,15 @@ export async function verifyToken(token, password, maxAgeMs = 24 * 60 * 60 * 100
   if (!tsNum) return false
   // 校验时效
   if (Date.now() - tsNum > maxAgeMs) return false
-  // 重新签名比对
+  // 重新签名比对（恒定时间）
   const expected = await hmacSign(password, ts)
-  // 常量时间比较防时序攻击
-  if (sig.length !== expected.length) return false
-  let diff = 0
-  for (let i = 0; i < sig.length; i++) {
-    diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i)
-  }
-  return diff === 0
+  return constantTimeEqual(sig, expected)
+}
+
+// 校验明文密码：用恒定时间比较，防止时序侧信道
+export function verifyPassword(input, password) {
+  if (!input || !password) return false
+  return constantTimeEqual(input, password)
 }
 
 // 从请求头提取 token

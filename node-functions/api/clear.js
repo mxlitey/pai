@@ -15,13 +15,14 @@ async function handleClear() {
   })
 }
 
-// 支持 POST 和 GET 两种方式触发（需鉴权）
+// 仅支持 POST 触发（需鉴权）
+// 不接受 GET：避免被浏览器预取、爬虫、缓存中间件意外触发状态变更
 export default async function onRequest(context) {
   const authFail = await requireAuth(context)
   if (authFail) return authFail
   const { request } = context
-  if (request.method === 'POST' || request.method === 'GET') {
+  if (request.method === 'POST') {
     return handleClear()
   }
-  return json({ code: 1, message: '不支持的请求方法', data: null }, 405)
+  return json({ code: 1, message: '不支持的请求方法，请使用 POST', data: null }, 405)
 }

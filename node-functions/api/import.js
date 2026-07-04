@@ -59,7 +59,11 @@ function groupByStudentMonth(schedules) {
   return map
 }
 
-export default async function onRequestPost({ request }) {
+export default async function onRequestPost(context) {
+  // 鉴权：数据导入为写操作，必须校验 token
+  const authFail = await requireAuth(context)
+  if (authFail) return authFail
+  const { request } = context
   const body = await readBody(request)
   const { students, schedules, mode } = body
 
