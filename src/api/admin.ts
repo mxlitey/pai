@@ -1,6 +1,6 @@
 // 后台管理 API 调用层 —— 直接请求后端 Edge Functions
 // 所有管理类请求需携带登录 token（Authorization: Bearer <token>）
-import type { Schedule } from '@/types'
+import type { Schedule, Student } from '@/types'
 
 const API_BASE = '/api'
 const TOKEN_KEY = 'admin_token'
@@ -171,5 +171,19 @@ export async function deleteStudent(
   return request(`${API_BASE}/student-delete`, {
     method: 'DELETE',
     body: JSON.stringify({ studentId }),
+  })
+}
+
+// 新增学员
+export async function addStudent(
+  student: Student,
+): Promise<ApiResult<{
+  created: boolean
+  exists: boolean
+  student: Student
+}>> {
+  return request(`${API_BASE}/student-add`, {
+    method: 'POST',
+    body: JSON.stringify({ student }),
   })
 }

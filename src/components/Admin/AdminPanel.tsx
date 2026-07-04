@@ -7,6 +7,7 @@ import {
   importData,
   deleteSchedule,
   deleteStudent,
+  addStudent,
   getToken,
   clearToken,
 } from '@/api/admin'
@@ -165,9 +166,9 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     if (selectedStudent) loadSchedules(selectedStudent.id)
   }, [selectedStudent, loadSchedules])
 
-  // 种子数据初始化
+  // 测试数据导入
   const handleSeed = async () => {
-    if (!confirm('确认初始化种子数据？这将写入 8 名示例学员及 7 月排课数据。')) return
+    if (!confirm('确认导入测试数据？这将写入 8 名示例学员及 7 月排课数据。')) return
     setBusy(true)
     try {
       const result = await seedData()
@@ -385,6 +386,27 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     }
   }
 
+  // 新增学员
+  // 返回 true 表示新增成功（弹窗可关闭），false 表示失败（保持弹窗）
+  const handleAddStudent = async (student: Student): Promise<boolean> => {
+    setBusy(true)
+    try {
+      const result = await addStudent(student)
+      if (result.code === 0) {
+        showToast('success', `学员「${student.name}」已新增`)
+        await loadStudents()
+        return true
+      }
+      showToast('error', result.message)
+      return false
+    } catch (e) {
+      handleApiError(e as Error)
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // 编辑保存后刷新
   const handleEditorUpdated = async () => {
     await loadStudents()
@@ -455,6 +477,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
           busy={busy}
           onBack={() => setShowStudentAdmin(false)}
           onDelete={handleDeleteStudent}
+          onAdd={handleAddStudent}
         />
         {toast && <ToastView toast={toast} />}
       </>

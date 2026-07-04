@@ -30,6 +30,19 @@ export async function saveStudents(students) {
   await store.set('students/index.json', JSON.stringify(students))
 }
 
+// 新增单个学员
+// 若同 id 已存在则拒绝（返回 exists:true），避免重复写入
+// 返回 { created:boolean, exists:boolean }
+export async function addStudent(student) {
+  const students = await getStudents()
+  if (students.some((s) => s.id === student.id)) {
+    return { created: false, exists: true }
+  }
+  students.push({ ...student })
+  await saveStudents(students)
+  return { created: true, exists: false }
+}
+
 // 按学员ID+月份读取排课
 export async function getSchedulesByMonth(studentId, month) {
   const store = getBlobStore()

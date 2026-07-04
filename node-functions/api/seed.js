@@ -1,5 +1,5 @@
-// 种子数据初始化 API
-// POST /api/seed 或 GET /api/seed -> 写入示例学员与排课数据到 Blob 存储
+// 测试数据导入 API
+// POST /api/seed -> 写入示例学员与排课数据到 Blob 存储
 import {
   saveStudents,
   saveSchedulesByMonth,
@@ -24,7 +24,7 @@ async function handleSeed() {
 
   return json({
     code: 0,
-    message: '种子数据初始化成功',
+    message: '测试数据已导入',
     data: {
       studentCount: students.length,
       scheduleCount: totalSchedules,
