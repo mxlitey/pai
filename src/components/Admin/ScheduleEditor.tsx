@@ -210,6 +210,11 @@ export function ScheduleEditor({
 
         {/* 内容 */}
         <div className="px-5 py-4 space-y-4">
+          {/* 必填说明 */}
+          <div className="text-xs text-slate-400">
+            <span className="text-rose-500">*</span> 为必填项
+          </div>
+
           {/* 不可编辑的 id */}
           <div className="flex items-center gap-4">
             <span className="text-sm text-slate-400 w-20 flex-shrink-0">排课ID</span>
@@ -220,7 +225,9 @@ export function ScheduleEditor({
 
           {/* 学员选择（搜索） */}
           <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">学员</span>
+            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
+              <span className="text-rose-500 mr-0.5">*</span>学员
+            </span>
             <StudentSearchSelect
               students={students}
               value={form.studentId}
@@ -230,7 +237,9 @@ export function ScheduleEditor({
 
           {/* 课程名称 */}
           <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">课程名称</span>
+            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
+              <span className="text-rose-500 mr-0.5">*</span>课程名称
+            </span>
             <input
               type="text"
               value={form.courseName}
@@ -242,7 +251,9 @@ export function ScheduleEditor({
 
           {/* 日期 */}
           <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">日期</span>
+            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
+              <span className="text-rose-500 mr-0.5">*</span>日期
+            </span>
             <input
               type="date"
               value={form.date}
