@@ -1,6 +1,6 @@
 // 后台管理 API 调用层 —— 直接请求后端 Edge Functions
 // 所有管理类请求需携带登录 token（Authorization: Bearer <token>）
-import type { Schedule, Student } from '@/types'
+import type { Schedule, Student, Course } from '@/types'
 
 const API_BASE = '/api'
 const TOKEN_KEY = 'admin_token'
@@ -185,5 +185,73 @@ export async function addStudent(
   return request(`${API_BASE}/student-add`, {
     method: 'POST',
     body: JSON.stringify({ student }),
+  })
+}
+
+// ========== 课程管理 ==========
+
+// 获取课程列表
+export async function listCourses(): Promise<ApiResult<{ courses: Course[] }>> {
+  return request(`${API_BASE}/courses`, { method: 'GET' })
+}
+
+// 新增课程
+export async function addCourse(
+  course: Course,
+): Promise<ApiResult<{
+  created: boolean
+  exists: boolean
+  course: Course
+}>> {
+  return request(`${API_BASE}/course-add`, {
+    method: 'POST',
+    body: JSON.stringify({ course }),
+  })
+}
+
+// 更新课程
+export async function updateCourse(
+  course: Course,
+): Promise<ApiResult<{
+  updated: boolean
+  notFound: boolean
+  course: Course
+}>> {
+  return request(`${API_BASE}/course-update`, {
+    method: 'PUT',
+    body: JSON.stringify({ course }),
+  })
+}
+
+// 删除课程（同时删除关联排课）
+export async function deleteCourse(
+  courseId: string,
+): Promise<ApiResult<{
+  courseRemoved: boolean
+  deletedScheduleCount: number
+  deletedFiles: number
+}>> {
+  return request(`${API_BASE}/course-delete`, {
+    method: 'DELETE',
+    body: JSON.stringify({ courseId }),
+  })
+}
+
+// 批量新增排课（按课程为多个学员同时排课）
+export async function batchAddSchedules(body: {
+  courseId: string
+  courseName: string
+  teacher?: string
+  location?: string
+  color?: string
+  date: string
+  startTime?: string
+  endTime?: string
+  note?: string
+  studentIds: string[]
+}): Promise<ApiResult<{ created: number; skipped: number; errors: string[] }>> {
+  return request(`${API_BASE}/schedule-add-batch`, {
+    method: 'POST',
+    body: JSON.stringify(body),
   })
 }

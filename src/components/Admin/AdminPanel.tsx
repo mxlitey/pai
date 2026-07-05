@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { Schedule, Student } from '@/types'
+import type { Schedule, Student, Course } from '@/types'
 import { searchStudents, getSchedules } from '@/api'
 import {
   seedData,
@@ -8,12 +8,18 @@ import {
   deleteSchedule,
   deleteStudent,
   addStudent,
+  listCourses,
+  addCourse,
+  updateCourse,
+  deleteCourse,
   getToken,
   clearToken,
 } from '@/api/admin'
 import { ScheduleEditor } from './ScheduleEditor'
+import { ScheduleAddModal } from './ScheduleAddModal'
 import { AdvancedAdmin } from './AdvancedAdmin'
 import { StudentAdmin } from './StudentAdmin'
+import { CourseAdmin } from './CourseAdmin'
 import { SearchBar } from '@/components/SearchBar'
 import { AdminLogin } from './AdminLogin'
 import { cn } from '@/utils/cn'
@@ -90,6 +96,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   // 登录状态：有 token 视为已登录
   const [authed, setAuthed] = useState<boolean>(() => !!getToken())
   const [students, setStudents] = useState<Student[]>([])
+  const [courses, setCourses] = useState<Course[]>([])
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [loadingSchedules, setLoadingSchedules] = useState(false)
@@ -113,6 +120,8 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   // 学员管理二级页面
   const [showStudentAdmin, setShowStudentAdmin] = useState(false)
+  // 课程管理二级页面
+  const [showCourseAdmin, setShowCourseAdmin] = useState(false)
 
   // 显示 toast
   const showToast = (type: Toast['type'], message: string) => {
@@ -140,6 +149,19 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     }
   }, [])
 
+  // 加载课程列表
+  const loadCourses = useCallback(async () => {
+    try {
+      const result = await listCourses()
+      if (result.code === 0) {
+        setCourses(result.data.courses)
+      }
+    } catch (e) {
+      // 课程加载失败不阻塞主流程
+      console.error('加载课程列表失败:', e)
+    }
+  }, [])
+
   // 加载某学员排课
   const loadSchedules = useCallback(async (studentId: string) => {
     if (!studentId) {
@@ -160,7 +182,8 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
 
   useEffect(() => {
     loadStudents()
-  }, [loadStudents])
+    loadCourses()
+  }, [loadStudents, loadCourses])
 
   useEffect(() => {
     if (selectedStudent) loadSchedules(selectedStudent.id)
@@ -407,6 +430,76 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     }
   }
 
+  // 新增课程
+  const handleAddCourse = async (course: Course): Promise<boolean> => {
+    setBusy(true)
+    try {
+      const result = await addCourse(course)
+      if (result.code === 0) {
+        showToast('success', `课程「${course.name}」已新增`)
+        await loadCourses()
+        return true
+      }
+      showToast('error', result.message)
+      return false
+    } catch (e) {
+      handleApiError(e as Error)
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // 更新课程
+  const handleUpdateCourse = async (course: Course): Promise<boolean> => {
+    setBusy(true)
+    try {
+      const result = await updateCourse(course)
+      if (result.code === 0) {
+        showToast('success', `课程「${course.name}」已更新`)
+        await loadCourses()
+        return true
+      }
+      showToast('error', result.message)
+      return false
+    } catch (e) {
+      handleApiError(e as Error)
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // 删除课程（同时删除关联排课）
+  const handleDeleteCourse = async (course: Course) => {
+    const step1 = confirm(
+      `⚠ 确认删除课程「${course.name}」(${course.id})？\n` +
+      `该操作将同时删除该课程的所有关联排课记录，且不可恢复！`,
+    )
+    if (!step1) return
+    const step2 = confirm('再次确认：真的要删除该课程及其全部排课吗？')
+    if (!step2) return
+    setBusy(true)
+    try {
+      const result = await deleteCourse(course.id)
+      if (result.code === 0) {
+        const msg = result.data.courseRemoved
+          ? `已删除课程及 ${result.data.deletedScheduleCount} 条关联排课`
+          : '课程不存在'
+        showToast('success', msg)
+        await loadCourses()
+        // 刷新当前学员排课（可能有排课被删除）
+        if (selectedStudent) await loadSchedules(selectedStudent.id)
+      } else {
+        showToast('error', result.message)
+      }
+    } catch (e) {
+      handleApiError(e as Error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // 编辑保存后刷新
   const handleEditorUpdated = async () => {
     await loadStudents()
@@ -455,10 +548,9 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
           onUpdated={handleEditorUpdated}
         />
         {addingSchedule && (
-          <ScheduleEditor
-            schedule={null}
+          <ScheduleAddModal
+            courses={courses}
             students={students}
-            mode="add"
             onClose={() => setAddingSchedule(false)}
             onUpdated={handleEditorUpdated}
           />
@@ -478,6 +570,23 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
           onBack={() => setShowStudentAdmin(false)}
           onDelete={handleDeleteStudent}
           onAdd={handleAddStudent}
+        />
+        {toast && <ToastView toast={toast} />}
+      </>
+    )
+  }
+
+  // 课程管理二级页面
+  if (showCourseAdmin) {
+    return (
+      <>
+        <CourseAdmin
+          courses={courses}
+          busy={busy}
+          onBack={() => setShowCourseAdmin(false)}
+          onDelete={handleDeleteCourse}
+          onAdd={handleAddCourse}
+          onUpdate={handleUpdateCourse}
         />
         {toast && <ToastView toast={toast} />}
       </>
@@ -563,6 +672,27 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
           </div>
         </section>
 
+        {/* 课程管理入口 */}
+        <section className="card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <span className="w-1 h-4 bg-brand-500 rounded"></span>
+                课程管理
+              </h2>
+              <div className="text-xs text-slate-500 mt-1.5 ml-3">
+                管理课程信息（教师/地点/默认时间/颜色），新增排课以课程为单位批量排课
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCourseAdmin(true)}
+              className="btn-primary text-sm py-1.5 px-3"
+            >
+              进入课程管理 →
+            </button>
+          </div>
+        </section>
+
         {/* 排课管理 */}
         <section className="card p-5">
           <div className="flex items-center justify-between mb-4">
@@ -572,9 +702,15 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
             </h2>
             <button
               onClick={() => setAddingSchedule(true)}
-              disabled={busy || students.length === 0}
+              disabled={busy || students.length === 0 || courses.length === 0}
               className="btn-primary text-sm py-1.5 px-3 disabled:opacity-50"
-              title={students.length === 0 ? '请先添加学员数据' : '新增单条排课'}
+              title={
+                students.length === 0
+                  ? '请先添加学员数据'
+                  : courses.length === 0
+                    ? '请先在课程管理中添加课程'
+                    : '按课程为多个学员批量排课'
+              }
             >
               + 新增排课
             </button>
@@ -694,10 +830,9 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
 
       {/* 新增弹窗 */}
       {addingSchedule && (
-        <ScheduleEditor
-          schedule={null}
+        <ScheduleAddModal
+          courses={courses}
           students={students}
-          mode="add"
           onClose={() => setAddingSchedule(false)}
           onUpdated={handleEditorUpdated}
         />

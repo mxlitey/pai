@@ -1,22 +1,6 @@
 import type { Schedule } from '@/types'
 import { cn } from '@/utils/cn'
-
-// 课程颜色映射，按课程名分配不同颜色
-const courseColors: Record<string, string> = {
-  数学: 'bg-blue-50 text-blue-700 border-blue-200',
-  英语: 'bg-green-50 text-green-700 border-green-200',
-  物理: 'bg-purple-50 text-purple-700 border-purple-200',
-  化学: 'bg-orange-50 text-orange-700 border-orange-200',
-  语文: 'bg-rose-50 text-rose-700 border-rose-200',
-  生物: 'bg-teal-50 text-teal-700 border-teal-200',
-}
-
-function getCourseColor(courseName: string): string {
-  for (const [key, color] of Object.entries(courseColors)) {
-    if (courseName.includes(key)) return color
-  }
-  return 'bg-slate-50 text-slate-700 border-slate-200'
-}
+import { getCourseCardClass } from '@/utils/courseColors'
 
 interface ScheduleCardProps {
   schedule: Schedule
@@ -25,7 +9,7 @@ interface ScheduleCardProps {
 }
 
 export function ScheduleCard({ schedule, compact = false, onClick }: ScheduleCardProps) {
-  const colorClass = getCourseColor(schedule.courseName)
+  const colorClass = getCourseCardClass(schedule.color, schedule.courseName)
 
   if (compact) {
     // 月视图中的紧凑卡片

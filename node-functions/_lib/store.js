@@ -30,6 +30,150 @@ export async function saveStudents(students) {
   await store.set('students/index.json', JSON.stringify(students))
 }
 
+// ========== 课程管理 ==========
+
+// 读取课程列表
+export async function getCourses() {
+  const store = getBlobStore()
+  const raw = await store.get('courses/index.json')
+  if (!raw) return []
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return []
+  }
+}
+
+// 保存课程列表
+export async function saveCourses(courses) {
+  const store = getBlobStore()
+  await store.set('courses/index.json', JSON.stringify(courses))
+}
+
+// 新增课程
+// 若同 id 已存在则拒绝（返回 exists:true）
+export async function addCourse(course) {
+  const courses = await getCourses()
+  if (courses.some((c) => c.id === course.id)) {
+    return { created: false, exists: true }
+  }
+  courses.push({ ...course })
+  await saveCourses(courses)
+  return { created: true, exists: false }
+}
+
+// 更新课程（按 id 定位）
+export async function updateCourse(course) {
+  const courses = await getCourses()
+  const idx = courses.findIndex((c) => c.id === course.id)
+  if (idx === -1) {
+    return { updated: false, notFound: true }
+  }
+  courses[idx] = { ...course }
+  await saveCourses(courses)
+  return { updated: true, notFound: false }
+}
+
+// 删除课程及其所有关联排课
+// 1. 扫描所有 schedules/ 文件，删除 courseId 匹配的排课记录
+// 2. 从 courses/index.json 移除该课程
+// 返回 { courseRemoved, deletedScheduleCount, deletedFiles }
+export async function deleteCourseWithSchedules(courseId) {
+  const store = getBlobStore()
+  let deletedScheduleCount = 0
+  let deletedFiles = 0
+
+  // 1. 扫描所有排课文件
+  const result = await store.list({ prefix: 'schedules/' })
+  const items = result.blobs || []
+  for (const item of items) {
+    const key = item.key
+    if (!key.endsWith('.json')) continue
+    const raw = await store.get(key)
+    if (!raw) continue
+    let list
+    try {
+      list = JSON.parse(raw)
+    } catch {
+      continue
+    }
+    if (!Array.isArray(list) || list.length === 0) continue
+    // 仅保留 courseId 不匹配的记录
+    const filtered = list.filter((s) => s.courseId !== courseId)
+    if (filtered.length === list.length) continue // 无变化
+    deletedScheduleCount += list.length - filtered.length
+    if (filtered.length === 0) {
+      // 文件变空，删除
+      try {
+        await store.delete(key)
+        deletedFiles++
+      } catch {}
+    } else {
+      await store.set(key, JSON.stringify(filtered))
+    }
+  }
+
+  // 2. 从课程列表中移除
+  const courses = await getCourses()
+  const filteredCourses = courses.filter((c) => c.id !== courseId)
+  let courseRemoved = false
+  if (filteredCourses.length !== courses.length) {
+    await saveCourses(filteredCourses)
+    courseRemoved = true
+  }
+
+  return {
+    courseRemoved,
+    deletedScheduleCount,
+    deletedFiles,
+  }
+}
+
+// 批量新增排课（为多个学员同时排同一节课）
+// schedules: Schedule[]（每条已含唯一 id）
+// 返回 { created, skipped, errors }
+export async function batchAddSchedules(schedules) {
+  let created = 0
+  let skipped = 0
+  const errors = []
+
+  // 按学员+月份分组，减少重复读写
+  const groups = new Map()
+  for (const s of schedules) {
+    const month = s.date.slice(0, 7)
+    const key = `${s.studentId}|${month}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(s)
+  }
+
+  for (const [, groupSchedules] of groups) {
+    const studentId = groupSchedules[0].studentId
+    const month = groupSchedules[0].date.slice(0, 7)
+    const existing = await getSchedulesByMonth(studentId, month)
+    const existingIds = new Set(existing.map((s) => s.id))
+
+    for (const s of groupSchedules) {
+      if (existingIds.has(s.id)) {
+        skipped++
+        continue
+      }
+      existing.push({ ...s })
+      existingIds.add(s.id)
+      created++
+    }
+
+    // 按日期+时间排序
+    existing.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date)
+      return (a.startTime || '').localeCompare(b.startTime || '')
+    })
+
+    await saveSchedulesByMonth(studentId, month, existing)
+  }
+
+  return { created, skipped, errors }
+}
+
 // 新增单个学员
 // 若同 id 已存在则拒绝（返回 exists:true），避免重复写入
 // 返回 { created:boolean, exists:boolean }
