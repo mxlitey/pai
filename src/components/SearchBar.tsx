@@ -5,10 +5,14 @@ import { cn } from '@/utils/cn'
 
 interface SearchBarProps {
   onSelectStudent: (student: Student) => void
+  // 初始输入框内容（用于首页刷新后回显上次搜索的学员名）
+  initialValue?: string
+  // 输入内容变化回调（清空时父级可据此禁用「查看排课」按钮）
+  onQueryChange?: (query: string) => void
 }
 
-export function SearchBar({ onSelectStudent }: SearchBarProps) {
-  const [query, setQuery] = useState('')
+export function SearchBar({ onSelectStudent, initialValue, onQueryChange }: SearchBarProps) {
+  const [query, setQuery] = useState(initialValue || '')
   const [results, setResults] = useState<Student[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -46,6 +50,7 @@ export function SearchBar({ onSelectStudent }: SearchBarProps) {
 
   const handleInput = (value: string) => {
     setQuery(value)
+    onQueryChange?.(value)
     if (debounceTimer.current) clearTimeout(debounceTimer.current)
     debounceTimer.current = setTimeout(() => doSearch(value), 250)
   }

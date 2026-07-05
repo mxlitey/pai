@@ -58,7 +58,7 @@ export function AdvancedAdmin(props: AdvancedAdminProps) {
             <span className="text-slate-300">/</span>
             <h1 className="text-base font-semibold text-slate-800">进阶管理</h1>
           </div>
-          <span className="text-xs text-slate-400 hidden sm:block">数据管理 · 公告设置</span>
+          <span className="text-xs text-slate-400 hidden sm:block">公告设置 · 数据管理</span>
         </div>
       </header>
 
@@ -76,6 +76,44 @@ export function AdvancedAdmin(props: AdvancedAdminProps) {
             </p>
           </div>
         </div>
+
+        {/* 公告设置 */}
+        <section className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+              <span className="w-1 h-4 bg-amber-400 rounded"></span>
+              公告设置
+            </h2>
+            {updatedAtLabel && (
+              <span className="text-xs text-slate-400">最近更新：{updatedAtLabel}</span>
+            )}
+          </div>
+
+          <div className="text-xs text-slate-500 mb-2 leading-relaxed">
+            公告内容将展示在首页与日历页中学员信息与日历之间。支持多行文本（按回车换行）。
+            内容为空时公告栏自动隐藏。保存后所有用户下次加载页面时即可看到最新公告。
+          </div>
+
+          <textarea
+            value={announcementText}
+            onChange={(e) => setAnnouncementText(e.target.value)}
+            placeholder="请输入公告内容，例如：&#10;1. 7 月 15 日（周一）全天停课，请学员按补课通知安排时间。&#10;2. 暑期班报名已开启，详情咨询前台。"
+            maxLength={5000}
+            className="w-full h-48 px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400 resize-y"
+          />
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-xs text-slate-400">
+              {announcementText.length}/5000 字
+            </span>
+            <button
+              onClick={onSaveAnnouncement}
+              disabled={busy}
+              className="btn-primary"
+            >
+              {busy ? '保存中…' : '保存公告'}
+            </button>
+          </div>
+        </section>
 
         {/* 数据管理 */}
         <section className="card p-5">
@@ -121,44 +159,6 @@ export function AdvancedAdmin(props: AdvancedAdminProps) {
                 {busy ? '处理中…' : '清空全部数据'}
               </button>
             </div>
-          </div>
-        </section>
-
-        {/* 公告设置 */}
-        <section className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-              <span className="w-1 h-4 bg-amber-400 rounded"></span>
-              公告设置
-            </h2>
-            {updatedAtLabel && (
-              <span className="text-xs text-slate-400">最近更新：{updatedAtLabel}</span>
-            )}
-          </div>
-
-          <div className="text-xs text-slate-500 mb-2 leading-relaxed">
-            公告内容将展示在首页与日历页中学员信息与日历之间。支持多行文本（按回车换行）。
-            内容为空时公告栏自动隐藏。保存后所有用户下次加载页面时即可看到最新公告。
-          </div>
-
-          <textarea
-            value={announcementText}
-            onChange={(e) => setAnnouncementText(e.target.value)}
-            placeholder="请输入公告内容，例如：&#10;1. 7 月 15 日（周一）全天停课，请学员按补课通知安排时间。&#10;2. 暑期班报名已开启，详情咨询前台。"
-            maxLength={5000}
-            className="w-full h-48 px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400 resize-y"
-          />
-          <div className="flex items-center justify-between mt-3">
-            <span className="text-xs text-slate-400">
-              {announcementText.length}/5000 字
-            </span>
-            <button
-              onClick={onSaveAnnouncement}
-              disabled={busy}
-              className="btn-primary"
-            >
-              {busy ? '保存中…' : '保存公告'}
-            </button>
           </div>
         </section>
 

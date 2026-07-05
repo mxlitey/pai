@@ -5,57 +5,61 @@ import type { Student } from '@/types'
 
 interface HomeProps {
   announcement?: string
+  // 当前选中的学员（用于决定「查看排课」按钮是否可用）
+  selectedStudent: Student | null
+  // 搜索框初始内容（刷新后回显上次搜索的学员名）
+  initialQuery: string
   onSelectStudent: (student: Student) => void
-  onEnterCalendar: () => void
+  // 搜索框内容变化回调（清空时父级清除选中状态）
+  onQueryChange: (query: string) => void
+  // 点击「查看排课」按钮跳转日历页
+  onViewSchedule: () => void
   onEnterAdmin: () => void
 }
 
 // 简洁首页（类百度）
 // - 居中展示项目名称（来自环境变量 VITE_APP_NAME）
-// - 学员搜索框：选中后直接进入日历页查看排课
-// - 入口按钮：进入日历 / 后台管理
+// - 学员搜索框：选中后启用「查看排课」按钮
+// - 入口按钮：查看排课（需先选中学员）/ 后台管理
 // - 页脚：排课系统 + GitHub 项目链接
-export function Home({ announcement, onSelectStudent, onEnterCalendar, onEnterAdmin }: HomeProps) {
+export function Home({
+  announcement,
+  selectedStudent,
+  initialQuery,
+  onSelectStudent,
+  onQueryChange,
+  onViewSchedule,
+  onEnterAdmin,
+}: HomeProps) {
+  const canView = !!selectedStudent
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
       {/* 主体内容：垂直水平居中 */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-10">
         {/* 项目名称 */}
         <div className="text-center mb-8 select-none">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-500 text-white mb-5 shadow-lg shadow-brand-500/20">
-            <svg
-              className="w-9 h-9"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-slate-800 tracking-tight">
             {APP_NAME}
           </h1>
-          <p className="text-sm sm:text-base text-slate-400 mt-3">
-            日历视角 · 学员排课查询
-          </p>
         </div>
 
         {/* 搜索框 */}
         <div className="w-full max-w-xl mb-6">
-          <SearchBar onSelectStudent={onSelectStudent} />
+          <SearchBar
+            onSelectStudent={onSelectStudent}
+            initialValue={initialQuery}
+            onQueryChange={onQueryChange}
+          />
         </div>
 
         {/* 入口按钮 */}
         <div className="flex items-center gap-3">
           <button
-            onClick={onEnterCalendar}
-            className="btn-primary px-5 py-2"
-            title="进入日历查看排课"
+            onClick={onViewSchedule}
+            disabled={!canView}
+            className={canView ? 'btn-primary px-5 py-2' : 'btn-primary px-5 py-2 opacity-50 cursor-not-allowed'}
+            title={canView ? `查看「${selectedStudent?.name}」的排课` : '请先搜索并选中学员'}
           >
             <svg
               className="w-4 h-4 mr-1.5"
@@ -70,7 +74,7 @@ export function Home({ announcement, onSelectStudent, onEnterCalendar, onEnterAd
                 d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
               />
             </svg>
-            进入日历
+            查看排课
           </button>
           <button
             onClick={onEnterAdmin}

@@ -23,16 +23,29 @@ import { APP_NAME, FOOTER_TEXT, GITHUB_URL } from '@/config'
 type PageMode = 'home' | 'calendar' | 'admin'
 
 export default function App() {
+  // 启动时从 localStorage 恢复上次搜索的学员，实现首页刷新后回显
   const [page, setPage] = useState<PageMode>('home')
   const [view, setView] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(() => {
+    try {
+      const raw = localStorage.getItem('lastStudent')
+      return raw ? (JSON.parse(raw) as Student) : null
+    } catch {
+      return null
+    }
+  })
   const [schedules, setSchedules] = useState<Schedule[]>([])
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [detailSchedule, setDetailSchedule] = useState<Schedule | null>(null)
   // 公告内容：启动时异步从后端加载，失败时静默为空
   const [announcement, setAnnouncement] = useState('')
+
+  // 浏览器标签标题跟随环境变量 APP_NAME
+  useEffect(() => {
+    document.title = APP_NAME
+  }, [])
 
   // 启动时异步加载公告（无需鉴权，不阻塞主流程）
   useEffect(() => {
@@ -91,10 +104,31 @@ export default function App() {
     setView(v)
   }
 
-  // 首页搜索选中学员 → 跳转日历页并加载该学员排课
+  // 首页搜索选中学员 → 持久化到 localStorage，停留在首页等待用户点击「查看排课」
   const handleSelectStudentFromHome = (student: Student) => {
     setSelectedStudent(student)
-    setPage('calendar')
+    try {
+      localStorage.setItem('lastStudent', JSON.stringify(student))
+    } catch {
+      // localStorage 不可用时静默忽略
+    }
+  }
+
+  // 首页搜索框内容变化：清空时清除选中状态与持久化记录
+  const handleHomeQueryChange = (q: string) => {
+    if (!q.trim()) {
+      setSelectedStudent(null)
+      try {
+        localStorage.removeItem('lastStudent')
+      } catch {
+        // 忽略
+      }
+    }
+  }
+
+  // 首页点击「查看排课」→ 跳转日历页加载该学员排课
+  const handleViewSchedule = () => {
+    if (selectedStudent) setPage('calendar')
   }
 
   // 日历页内搜索选中学员
@@ -116,8 +150,11 @@ export default function App() {
     return (
       <Home
         announcement={announcement}
+        selectedStudent={selectedStudent}
+        initialQuery={selectedStudent?.name || ''}
         onSelectStudent={handleSelectStudentFromHome}
-        onEnterCalendar={() => setPage('calendar')}
+        onQueryChange={handleHomeQueryChange}
+        onViewSchedule={handleViewSchedule}
         onEnterAdmin={() => setPage('admin')}
       />
     )
@@ -145,31 +182,10 @@ export default function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </button>
-              <div className="w-9 h-9 rounded-lg bg-brand-500 flex items-center justify-center text-white">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-slate-800">{APP_NAME}</h1>
-                <p className="text-xs text-slate-400 hidden sm:block">
-                  日历视角 · 学员排课查询
-                </p>
-              </div>
+              <h1 className="text-lg font-semibold text-slate-800">{APP_NAME}</h1>
             </div>
             <div className="flex items-center gap-2">
               <SearchBar onSelectStudent={handleSelectStudent} />
-              <button
-                onClick={() => setPage('admin')}
-                className="btn-ghost border border-slate-200"
-                title="后台管理"
-              >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="hidden sm:inline">后台管理</span>
-              </button>
             </div>
           </div>
         </div>
