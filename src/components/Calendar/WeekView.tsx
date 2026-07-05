@@ -38,6 +38,15 @@ export function WeekView({ currentDate, schedules, onScheduleClick }: WeekViewPr
 
   return (
     <div className="card overflow-hidden">
+      {/* 小屏提示：日期切换说明 + 圆点图例 */}
+      <div className="sm:hidden flex items-center justify-center gap-3 px-3 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
+        <span>点击上方日期切换查看</span>
+        <span className="flex items-center gap-1 text-slate-500">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-500" />
+          表示当天有排课
+        </span>
+      </div>
+
       {/* ============ 星期表头（共用，大屏可点击高亮当日列；小屏作为日期切换 tabs） ============ */}
       <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
         {weekDays.map((day) => {
@@ -154,11 +163,6 @@ export function WeekView({ currentDate, schedules, onScheduleClick }: WeekViewPr
             ))}
           </div>
         )}
-
-        {/* 提示 */}
-        <div className="mt-4 text-center text-xs text-slate-400">
-          点击上方日期切换查看
-        </div>
       </div>
     </div>
   )
