@@ -541,7 +541,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
                 点名管理
               </h2>
               <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                按日期批量设置学员出勤，到课自动扣减课时
+                查看和管理点名数据
               </div>
             </div>
             <button

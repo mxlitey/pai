@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Schedule, Student, ViewMode } from '@/types'
-import { getSchedules, getAnnouncement } from '@/api'
+import { getSchedules, getAnnouncement, searchStudents } from '@/api'
 import {
   getViewTitle,
   navigateDate,
@@ -65,6 +65,7 @@ export default function App() {
   }, [view, currentDate])
 
   // 加载排课数据
+  // 同时刷新学员最新信息（含 hours/remainingHours），避免 localStorage 旧快照导致课时不显示
   const loadSchedules = useCallback(async () => {
     if (!selectedStudent) {
       setSchedules([])
@@ -73,12 +74,25 @@ export default function App() {
     setLoading(true)
     setLoadError('')
     try {
-      const data = await getSchedules(
-        selectedStudent.id,
-        formatDate(dateRange.start),
-        formatDate(dateRange.end),
-      )
+      const [data, latestStudents] = await Promise.all([
+        getSchedules(
+          selectedStudent.id,
+          formatDate(dateRange.start),
+          formatDate(dateRange.end),
+        ),
+        searchStudents(selectedStudent.name),
+      ])
       setSchedules(data)
+      // 用最新学员信息覆盖（按 id 匹配），并同步 localStorage
+      const latest = latestStudents.find((s) => s.id === selectedStudent.id)
+      if (latest) {
+        setSelectedStudent(latest)
+        try {
+          localStorage.setItem('lastStudent', JSON.stringify(latest))
+        } catch {
+          // localStorage 不可用时静默忽略
+        }
+      }
     } catch (e) {
       setSchedules([])
       setLoadError((e as Error).message || '加载排课数据失败')
