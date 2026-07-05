@@ -37,7 +37,7 @@ export function Announcement({ content }: AnnouncementProps) {
             <span className="text-sm font-semibold text-slate-700">公告</span>
           </div>
           {/* 公告内容：Markdown 渲染，限定最大高度，超出可上下滚动 */}
-          <div className="text-sm text-slate-600 leading-relaxed max-h-60 overflow-y-auto pr-2 announcement-md">
+          <div className="text-sm text-slate-600 leading-relaxed max-h-80 overflow-y-auto pr-2 announcement-md">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
