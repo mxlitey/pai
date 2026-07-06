@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { Schedule } from '@/types'
 import { cn } from '@/utils/cn'
+import { getCourseDotClass } from '@/utils/courseColors'
 
 interface AttendanceAdminProps {
   busy: boolean
@@ -63,6 +64,59 @@ export function AttendanceAdmin({ busy, onBack, onLoad, onSave }: AttendanceAdmi
       next[s.id] = attended
     }
     setEditMap(next)
+    setSuccessMsg('')
+  }
+
+  // 按课程分组，便于分班级/分课程点名
+  const groupedByCourse = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        key: string
+        courseName: string
+        teacher?: string
+        location?: string
+        color?: string
+        schedules: Schedule[]
+      }
+    >()
+    for (const s of schedules) {
+      const key = s.courseId || s.courseName
+      let g = map.get(key)
+      if (!g) {
+        g = {
+          key,
+          courseName: s.courseName,
+          teacher: s.teacher,
+          location: s.location,
+          color: s.color,
+          schedules: [],
+        }
+        map.set(key, g)
+      }
+      g.schedules.push(s)
+    }
+    const groups = Array.from(map.values())
+    // 组内按开始时间升序
+    for (const g of groups) {
+      g.schedules.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''))
+    }
+    // 组间按首节课时间升序
+    groups.sort((a, b) =>
+      (a.schedules[0]?.startTime || '').localeCompare(b.schedules[0]?.startTime || ''),
+    )
+    return groups
+  }, [schedules])
+
+  // 按课程批量设置出勤
+  const setGroupAll = (group: { schedules: Schedule[] }, attended: boolean | undefined) => {
+    setEditMap((m) => {
+      const next = { ...m }
+      for (const s of group.schedules) {
+        next[s.id] = attended
+      }
+      return next
+    })
     setSuccessMsg('')
   }
 
@@ -186,112 +240,167 @@ export function AttendanceAdmin({ busy, onBack, onLoad, onSave }: AttendanceAdmi
           </div>
         )}
 
-        {/* 排课列表 */}
+        {/* 排课列表（按课程分组） */}
         {loadedDate && schedules.length > 0 && (
-          <section className="card p-5">
-            {/* 统计 + 快捷操作 */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-4 text-xs">
-                <span className="text-green-600">到课 {stats.present}</span>
-                <span className="text-rose-500">缺勤 {stats.absent}</span>
-                <span className="text-slate-400">未点名 {stats.unset}</span>
-                <span className="text-slate-300">|</span>
-                <span className="text-brand-600">待保存 {changedItems.length}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAll(true)}
-                  className="btn-ghost border border-green-200 text-green-700 hover:bg-green-50 text-xs py-1 px-2.5"
-                >
-                  全选到课
-                </button>
-                <button
-                  onClick={() => setAll(false)}
-                  className="btn-ghost border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs py-1 px-2.5"
-                >
-                  全选缺勤
-                </button>
-                <button
-                  onClick={() => setAll(undefined)}
-                  className="btn-ghost border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs py-1 px-2.5"
-                >
-                  全部未点名
-                </button>
+          <section className="space-y-4">
+            {/* 全局统计 + 快捷操作 */}
+            <div className="card p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 sm:gap-4 text-xs flex-wrap">
+                  <span className="text-green-600">到课 {stats.present}</span>
+                  <span className="text-rose-500">缺勤 {stats.absent}</span>
+                  <span className="text-slate-400">未点名 {stats.unset}</span>
+                  <span className="text-slate-300">|</span>
+                  <span className="text-brand-600">待保存 {changedItems.length}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setAll(true)}
+                    className="btn-ghost border border-green-200 text-green-700 hover:bg-green-50 text-xs py-1 px-2.5"
+                  >
+                    全选到课
+                  </button>
+                  <button
+                    onClick={() => setAll(false)}
+                    className="btn-ghost border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs py-1 px-2.5"
+                  >
+                    全选缺勤
+                  </button>
+                  <button
+                    onClick={() => setAll(undefined)}
+                    className="btn-ghost border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs py-1 px-2.5"
+                  >
+                    全部未点名
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* 列表 */}
-            <div className="space-y-2">
-              {schedules.map((s) => {
-                const cur = editMap[s.id]
-                return (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between border border-slate-100 rounded-lg px-3 py-2.5 hover:bg-slate-50/50"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {/* 时间 */}
-                      <div className="text-xs text-slate-500 font-mono w-24 flex-shrink-0">
-                        {s.startTime || '--:--'}
-                        <span className="text-slate-300 mx-1">→</span>
-                        {s.endTime || '--:--'}
+            {/* 按课程分组渲染 */}
+            {groupedByCourse.map((group) => {
+              let gp = 0
+              let ga = 0
+              let gu = 0
+              for (const s of group.schedules) {
+                const v = editMap[s.id]
+                if (v === true) gp++
+                else if (v === false) ga++
+                else gu++
+              }
+              return (
+                <div key={group.key} className="card p-4 sm:p-5">
+                  {/* 课程标题 */}
+                  <div className="flex items-start sm:items-center justify-between gap-2 mb-3 pb-2 border-b border-slate-100">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            'w-2.5 h-2.5 rounded-full flex-shrink-0',
+                            getCourseDotClass(group.color),
+                          )}
+                        />
+                        <h3 className="font-semibold text-slate-800 text-sm sm:text-base truncate">
+                          {group.courseName}
+                        </h3>
+                        <span className="text-xs text-slate-400 flex-shrink-0">
+                          {group.schedules.length} 人
+                        </span>
                       </div>
-                      {/* 学员 + 课程 */}
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm text-slate-800 font-medium truncate">
-                          {s.studentName}
-                        </div>
-                        <div className="text-xs text-slate-400 truncate">
-                          {s.courseName}
-                          {s.teacher ? ` · ${s.teacher}` : ''}
-                        </div>
+                      <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                        {group.teacher && <span>{group.teacher}</span>}
+                        {group.location && <span>· {group.location}</span>}
+                        <span className="text-slate-300">·</span>
+                        <span className="text-green-600">到 {gp}</span>
+                        <span className="text-rose-500">缺 {ga}</span>
+                        <span className="text-slate-400">未 {gu}</span>
                       </div>
                     </div>
-
-                    {/* 三态切换 */}
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button
-                        onClick={() => setItem(s.id, true)}
-                        className={cn(
-                          'px-2.5 py-1 text-xs rounded transition-colors',
-                          cur === true
-                            ? 'bg-green-600 text-white'
-                            : 'bg-slate-100 text-slate-500 hover:bg-green-100 hover:text-green-700',
-                        )}
+                        onClick={() => setGroupAll(group, true)}
+                        className="btn-ghost border border-green-200 text-green-700 hover:bg-green-50 text-xs py-1 px-2"
                       >
-                        到课
+                        全到
                       </button>
                       <button
-                        onClick={() => setItem(s.id, false)}
-                        className={cn(
-                          'px-2.5 py-1 text-xs rounded transition-colors',
-                          cur === false
-                            ? 'bg-rose-600 text-white'
-                            : 'bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700',
-                        )}
+                        onClick={() => setGroupAll(group, false)}
+                        className="btn-ghost border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs py-1 px-2"
                       >
-                        缺勤
-                      </button>
-                      <button
-                        onClick={() => setItem(s.id, undefined)}
-                        className={cn(
-                          'px-2.5 py-1 text-xs rounded transition-colors',
-                          cur === undefined
-                            ? 'bg-slate-400 text-white'
-                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200',
-                        )}
-                        title="标记为未点名"
-                      >
-                        未点名
+                        全缺
                       </button>
                     </div>
                   </div>
-                )
-              })}
-            </div>
+
+                  {/* 该课程的排课列表 */}
+                  <div className="space-y-2">
+                    {group.schedules.map((s) => {
+                      const cur = editMap[s.id]
+                      return (
+                        <div
+                          key={s.id}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-slate-100 rounded-lg px-3 py-2 hover:bg-slate-50/50"
+                        >
+                          {/* 时间 + 学员（移动端横向排列，桌面端同行） */}
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <div className="text-xs text-slate-500 font-mono flex-shrink-0">
+                              <span>{s.startTime || '--:--'}</span>
+                              <span className="text-slate-300 mx-1 hidden sm:inline">→</span>
+                              <span className="text-slate-300 hidden sm:inline">
+                                {s.endTime || '--:--'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-slate-800 font-medium truncate">
+                              {s.studentName}
+                            </div>
+                          </div>
+
+                          {/* 三态按钮：移动端占满宽度均分，桌面端右对齐 */}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setItem(s.id, true)}
+                              className={cn(
+                                'flex-1 sm:flex-initial px-2.5 py-1 text-xs rounded transition-colors',
+                                cur === true
+                                  ? 'bg-green-600 text-white'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-green-100 hover:text-green-700',
+                              )}
+                            >
+                              到课
+                            </button>
+                            <button
+                              onClick={() => setItem(s.id, false)}
+                              className={cn(
+                                'flex-1 sm:flex-initial px-2.5 py-1 text-xs rounded transition-colors',
+                                cur === false
+                                  ? 'bg-rose-600 text-white'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-rose-100 hover:text-rose-700',
+                              )}
+                            >
+                              缺勤
+                            </button>
+                            <button
+                              onClick={() => setItem(s.id, undefined)}
+                              className={cn(
+                                'flex-1 sm:flex-initial px-2.5 py-1 text-xs rounded transition-colors',
+                                cur === undefined
+                                  ? 'bg-slate-400 text-white'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200',
+                              )}
+                              title="标记为未点名"
+                            >
+                              未点名
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
 
             {/* 保存按钮 */}
-            <div className="flex items-center justify-end mt-4 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end pt-2">
               <button
                 onClick={handleSave}
                 disabled={busy || saving || changedItems.length === 0}
