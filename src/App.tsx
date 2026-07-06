@@ -21,9 +21,31 @@ import { APP_NAME, FOOTER_TEXT, GITHUB_URL } from '@/config'
 // 页面模式：首页 / 日历视图（二级页） / 后台管理
 type PageMode = 'home' | 'calendar' | 'admin'
 
+// 清除 URL 中的 ?s= 参数（主动返回首页 / 进入后台时调用）
+function clearScheduleParam() {
+  try {
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('s')) {
+      url.searchParams.delete('s')
+      window.history.replaceState({}, '', url.toString())
+    }
+  } catch {
+    // 忽略
+  }
+}
+
 export default function App() {
   // 启动时从 localStorage 恢复上次搜索的学员，实现首页刷新后回显
-  const [page, setPage] = useState<PageMode>('home')
+  // page 初始值：URL 含 ?s= 时直接进入日历页，避免刷新时被重置回首页
+  const [page, setPage] = useState<PageMode>(() => {
+    try {
+      const url = new URL(window.location.href)
+      if (url.searchParams.get('s')) return 'calendar'
+    } catch {
+      // 忽略
+    }
+    return 'home'
+  })
   const [view, setView] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(() => {
@@ -46,8 +68,8 @@ export default function App() {
     document.title = APP_NAME
   }, [])
 
-  // 启动时解析 URL 参数 ?s=学员id，直接进入该学员排课页
-  // s 用于查询（后端 q 同时匹配 id 与 name）
+  // 启动时解析 URL 参数 ?s=学员id，加载该学员信息
+  // page 初始值已根据 ?s 决定，此处仅负责加载学员数据
   useEffect(() => {
     const url = new URL(window.location.href)
     const sid = url.searchParams.get('s')
@@ -64,25 +86,21 @@ export default function App() {
         } catch {
           // localStorage 不可用时静默忽略
         }
-        setPage('calendar')
       })
       .catch(() => {
-        // 查不到则忽略，停留在首页
+        // 查不到则忽略，停留在当前页
       })
     return () => {
       active = false
     }
   }, [])
 
-  // 学员切换 / 页面切换时同步 URL，便于分享链接
+  // 学员切换时同步 URL 的 ?s= 参数（仅在日历页写入，不主动清除）
+  // 清除逻辑由「返回首页」「进入后台」按钮显式触发，避免刷新时误清
   useEffect(() => {
-    const url = new URL(window.location.href)
     if (selectedStudent && page === 'calendar') {
+      const url = new URL(window.location.href)
       url.searchParams.set('s', selectedStudent.id)
-      window.history.replaceState({}, '', url.toString())
-    } else if (url.searchParams.has('s')) {
-      // 离开日历页清掉参数，避免首页 URL 残留
-      url.searchParams.delete('s')
       window.history.replaceState({}, '', url.toString())
     }
   }, [selectedStudent, page])
@@ -221,14 +239,20 @@ export default function App() {
         onSelectStudent={handleSelectStudentFromHome}
         onQueryChange={handleHomeQueryChange}
         onViewSchedule={handleViewSchedule}
-        onEnterAdmin={() => setPage('admin')}
+        onEnterAdmin={() => {
+          clearScheduleParam()
+          setPage('admin')
+        }}
       />
     )
   }
 
   // 后台管理
   if (page === 'admin') {
-    return <AdminPanel onExit={() => setPage('home')} />
+    return <AdminPanel onExit={() => {
+      clearScheduleParam()
+      setPage('home')
+    }} />
   }
 
   // 日历视图（二级页）
@@ -240,7 +264,10 @@ export default function App() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setPage('home')}
+                onClick={() => {
+                  clearScheduleParam()
+                  setPage('home')
+                }}
                 className="btn-ghost -ml-2 px-2"
                 title="返回首页"
               >
