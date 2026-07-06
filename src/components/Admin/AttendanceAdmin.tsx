@@ -345,36 +345,52 @@ export function AttendanceAdmin({ busy, onBack, onLoad, onSave }: AttendanceAdmi
                         <span className="text-slate-400">未 {gu}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => setGroupAll(group, true)}
-                        className="btn-ghost border border-green-200 text-green-700 hover:bg-green-50 text-xs py-1 px-2"
-                      >
-                        全到
-                      </button>
-                      <button
-                        onClick={() => setGroupAll(group, false)}
-                        className="btn-ghost border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs py-1 px-2"
-                      >
-                        全缺
-                      </button>
-                    </div>
                   </div>
 
                   {/* 该课程的排课列表（按时间段二级分组） */}
                   <div className="space-y-3">
-                    {group.timeGroups.map((tg) => (
+                    {group.timeGroups.map((tg) => {
+                      let tp = 0
+                      let ta = 0
+                      let tu = 0
+                      for (const s of tg.schedules) {
+                        const v = editMap[s.id]
+                        if (v === true) tp++
+                        else if (v === false) ta++
+                        else tu++
+                      }
+                      return (
                       <div key={tg.timeKey}>
-                        {/* 时间段子标题 */}
-                        <div className="flex items-center gap-2 mb-1.5 px-1">
-                          <span className="text-xs font-mono text-slate-600 font-medium">
-                            {tg.startTime}
-                            <span className="text-slate-300 mx-1">→</span>
-                            {tg.endTime}
-                          </span>
-                          <span className="text-xs text-slate-400">
-                            {tg.schedules.length} 人
-                          </span>
+                        {/* 时间段子标题 + 时间段级批量操作 */}
+                        <div className="flex items-center justify-between gap-2 mb-1.5 px-1 flex-wrap">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-mono text-slate-600 font-medium">
+                              {tg.startTime}
+                              <span className="text-slate-300 mx-1">→</span>
+                              {tg.endTime}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {tg.schedules.length} 人
+                            </span>
+                            <span className="text-slate-300 text-xs">·</span>
+                            <span className="text-xs text-green-600">到 {tp}</span>
+                            <span className="text-xs text-rose-500">缺 {ta}</span>
+                            <span className="text-xs text-slate-400">未 {tu}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setGroupAll({ schedules: tg.schedules }, true)}
+                              className="btn-ghost border border-green-200 text-green-700 hover:bg-green-50 text-xs py-0.5 px-2"
+                            >
+                              全到
+                            </button>
+                            <button
+                              onClick={() => setGroupAll({ schedules: tg.schedules }, false)}
+                              className="btn-ghost border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs py-0.5 px-2"
+                            >
+                              全缺
+                            </button>
+                          </div>
                         </div>
                         {/* 该时间段的学员列表（时间已上移到子标题，不再逐条显示） */}
                         <div className="space-y-2">
@@ -385,8 +401,13 @@ export function AttendanceAdmin({ busy, onBack, onLoad, onSave }: AttendanceAdmi
                                 key={s.id}
                                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-slate-100 rounded-lg px-3 py-2 hover:bg-slate-50/50"
                               >
-                                <div className="text-sm text-slate-800 font-medium truncate min-w-0">
-                                  {s.studentName}
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="text-sm text-slate-800 font-medium truncate">
+                                    {s.studentName}
+                                  </div>
+                                  <span className="text-xs text-slate-400 font-mono flex-shrink-0">
+                                    {s.id}
+                                  </span>
                                 </div>
 
                                 {/* 三态按钮：移动端占满宽度均分，桌面端右对齐 */}
@@ -431,7 +452,8 @@ export function AttendanceAdmin({ busy, onBack, onLoad, onSave }: AttendanceAdmi
                           })}
                         </div>
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )
