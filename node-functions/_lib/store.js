@@ -4,6 +4,7 @@
 //   schedules/{studentId}/{yyyy-MM}.json -> Schedule[]
 //   schedules/{studentId}/_index.json    -> 该学员所有排课月份列表（可选加速）
 import { getStore } from '@edgeone/pages-blob'
+import { genScheduleId } from './id.js'
 
 const STORE_NAME = 'schedule-system'
 
@@ -210,6 +211,9 @@ export async function batchAddSchedules(schedules) {
     let created = 0
     let skipped = 0
     const errors = []
+    // 批次内已用 id 集合：与各组的 existingIds 共同构成全局唯一性校验
+    // 防止同次请求内重生成 id 时再次碰撞
+    const usedIds = new Set()
 
     // 按学员+月份分组，减少重复读写
     const groups = new Map()
@@ -227,12 +231,22 @@ export async function batchAddSchedules(schedules) {
       const existingIds = new Set(existing.map((s) => s.id))
 
       for (const s of groupSchedules) {
-        if (existingIds.has(s.id)) {
+        let id = s.id
+        // 与已有存储 id 或批次内已用 id 碰撞时，重新生成直到全局唯一
+        // 重试上限 100 次兜底（时间戳+计数器+随机后缀碰撞概率极低，理论上不会触发）
+        let guard = 0
+        while ((existingIds.has(id) || usedIds.has(id)) && guard < 100) {
+          id = genScheduleId()
+          guard++
+        }
+        if (existingIds.has(id) || usedIds.has(id)) {
+          errors.push({ studentId: s.studentId, date: s.date, reason: 'id 碰撞重试耗尽' })
           skipped++
           continue
         }
-        existing.push({ ...s })
-        existingIds.add(s.id)
+        existing.push({ ...s, id })
+        existingIds.add(id)
+        usedIds.add(id)
         created++
       }
 

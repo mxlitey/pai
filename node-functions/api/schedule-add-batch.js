@@ -5,6 +5,7 @@
 // dates 为多日期数组，支持一次性排多天的课
 import { batchAddSchedules, getStudents, json } from '../_lib/store.js'
 import { requireAuth } from '../_lib/auth.js'
+import { genScheduleId } from '../_lib/id.js'
 
 async function readBody(request) {
   try {
@@ -12,17 +13,6 @@ async function readBody(request) {
   } catch {
     return {}
   }
-}
-
-// 生成排课 id：时间戳 + 进程内自增计数器 + 随机后缀
-// 计数器保证同一次请求（同一毫秒内）生成的 id 绝对不重复
-let idCounter = 0
-function genScheduleId() {
-  idCounter = (idCounter + 1) % 0x1000000 // 24 位循环计数
-  const ts = Date.now().toString(36)
-  const seq = idCounter.toString(36).padStart(4, '0')
-  const rand = Math.random().toString(36).slice(2, 8)
-  return `s_${ts}${seq}${rand}`
 }
 
 export default async function onRequestPost(context) {
