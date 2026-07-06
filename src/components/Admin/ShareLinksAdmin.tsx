@@ -8,7 +8,7 @@ interface ShareLinksAdminProps {
 
 // 分享链接管理页
 // - 遍历所有学员，为每个学员生成专属排课查看链接
-// - 链接格式：{origin}/?s=学员id&n=学员名字
+// - 链接格式：{origin}/?s=学员id
 // - 支持按姓名/ID 搜索过滤
 // - 支持单条复制、一键复制全部
 export function ShareLinksAdmin({ students, onBack }: ShareLinksAdminProps) {
@@ -21,7 +21,7 @@ export function ShareLinksAdmin({ students, onBack }: ShareLinksAdminProps) {
 
   // 为学员生成专属链接
   const buildLink = (s: Student) =>
-    `${origin}/?s=${encodeURIComponent(s.id)}&n=${encodeURIComponent(s.name)}`
+    `${origin}/?s=${encodeURIComponent(s.id)}`
 
   // 搜索过滤：按姓名或 ID 模糊匹配
   const filtered = useMemo(() => {
@@ -105,7 +105,7 @@ export function ShareLinksAdmin({ students, onBack }: ShareLinksAdminProps) {
         <section className="card p-4">
           <div className="text-xs text-slate-500 leading-relaxed">
             为每位学员生成专属排课查看链接，家长点击即可直接查看该学员的排课日历，无需登录或搜索。
-            链接格式：<code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-mono">域名/?s=学员id&amp;n=学员名字</code>
+            链接格式：<code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-mono">域名/?s=学员id</code>
           </div>
         </section>
 

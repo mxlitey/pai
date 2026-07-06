@@ -46,8 +46,8 @@ export default function App() {
     document.title = APP_NAME
   }, [])
 
-  // 启动时解析 URL 参数 ?s=学员id&n=学员名字，直接进入该学员排课页
-  // s 用于查询（后端 q 同时匹配 id 与 name），n 仅作 URL 标识便于识别，不参与查询
+  // 启动时解析 URL 参数 ?s=学员id，直接进入该学员排课页
+  // s 用于查询（后端 q 同时匹配 id 与 name）
   useEffect(() => {
     const url = new URL(window.location.href)
     const sid = url.searchParams.get('s')
@@ -79,12 +79,10 @@ export default function App() {
     const url = new URL(window.location.href)
     if (selectedStudent && page === 'calendar') {
       url.searchParams.set('s', selectedStudent.id)
-      url.searchParams.set('n', selectedStudent.name)
       window.history.replaceState({}, '', url.toString())
-    } else if (url.searchParams.has('s') || url.searchParams.has('n')) {
+    } else if (url.searchParams.has('s')) {
       // 离开日历页清掉参数，避免首页 URL 残留
       url.searchParams.delete('s')
-      url.searchParams.delete('n')
       window.history.replaceState({}, '', url.toString())
     }
   }, [selectedStudent, page])
