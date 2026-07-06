@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import type { ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-interface AdvancedAdminProps {
+interface AnnouncementAdminProps {
   // 顶部返回按钮
   onBack: () => void
   busy: boolean
@@ -12,21 +11,17 @@ interface AdvancedAdminProps {
   setAnnouncementText: (v: string) => void
   announcementUpdatedAt: string
   onSaveAnnouncement: () => void
-  // 可选：额外提示节点（如 toast 由父级管理）
-  children?: ReactNode
 }
 
-export function AdvancedAdmin(props: AdvancedAdminProps) {
-  const {
-    onBack,
-    busy,
-    announcementText,
-    setAnnouncementText,
-    announcementUpdatedAt,
-    onSaveAnnouncement,
-    children,
-  } = props
-
+// 公告管理页 —— 编辑并预览首页公告内容（支持 Markdown）
+export function AnnouncementAdmin({
+  onBack,
+  busy,
+  announcementText,
+  setAnnouncementText,
+  announcementUpdatedAt,
+  onSaveAnnouncement,
+}: AnnouncementAdminProps) {
   // 公告编辑/预览切换
   const [announceTab, setAnnounceTab] = useState<'edit' | 'preview'>('edit')
 
@@ -57,33 +52,19 @@ export function AdvancedAdmin(props: AdvancedAdminProps) {
               返回后台
             </button>
             <span className="text-slate-300">/</span>
-            <h1 className="text-base font-semibold text-slate-800">进阶管理</h1>
+            <h1 className="text-base font-semibold text-slate-800">公告管理</h1>
           </div>
-          <span className="text-xs text-slate-400 hidden sm:block">公告设置 · 数据管理</span>
+          <span className="text-xs text-slate-400 hidden sm:block">查看和管理公告内容</span>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-5">
-        {/* 危险操作警告横幅 */}
-        <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 flex items-start gap-3">
-          <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
-          </svg>
-          <div className="text-sm text-amber-800">
-            <div className="font-semibold mb-1">⚠ 非专业人员禁止操作</div>
-            <p className="text-xs leading-relaxed">
-              本页面操作将直接修改 Blob 存储中的全局数据，可能导致数据丢失或不可恢复的损坏。
-              仅在明确知晓每个操作后果的情况下使用。如不确定，请返回后台管理页使用「新增排课」「编辑排课」等安全操作。
-            </p>
-          </div>
-        </div>
-
         {/* 公告设置 */}
         <section className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-              <span className="w-1 h-4 bg-amber-400 rounded"></span>
-              公告设置
+              <span className="w-1 h-4 bg-brand-500 rounded"></span>
+              公告内容
             </h2>
             {updatedAtLabel && (
               <span className="text-xs text-slate-400">最近更新：{updatedAtLabel}</span>
@@ -198,8 +179,6 @@ export function AdvancedAdmin(props: AdvancedAdminProps) {
             </button>
           </div>
         </section>
-
-        {children}
       </main>
     </div>
   )

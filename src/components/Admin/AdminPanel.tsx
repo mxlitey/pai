@@ -16,7 +16,7 @@ import {
   getToken,
   clearToken,
 } from '@/api/admin'
-import { AdvancedAdmin } from './AdvancedAdmin'
+import { AnnouncementAdmin } from './AnnouncementAdmin'
 import { StudentAdmin } from './StudentAdmin'
 import { CourseAdmin } from './CourseAdmin'
 import { ScheduleAdmin } from './ScheduleAdmin'
@@ -41,12 +41,12 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<Toast>(null)
 
-  // 公告设置（进阶管理页编辑 + 保存）
+  // 公告设置（公告管理页编辑 + 保存）
   const [announcementText, setAnnouncementText] = useState('')
   const [announcementUpdatedAt, setAnnouncementUpdatedAt] = useState('')
 
-  // 进阶管理二级页面
-  const [showAdvanced, setShowAdvanced] = useState(false)
+  // 公告管理二级页面
+  const [showAnnouncement, setShowAnnouncement] = useState(false)
   // 学员管理二级页面
   const [showStudentAdmin, setShowStudentAdmin] = useState(false)
   // 课程管理二级页面
@@ -132,7 +132,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     loadCourses()
   }, [authed, loadStudents, loadCourses])
 
-  // 公告：进入进阶管理页时加载当前内容
+  // 公告：进入公告管理页时加载当前内容
   const handleLoadAnnouncement = useCallback(async () => {
     try {
       const info = await getAnnouncement()
@@ -326,12 +326,12 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     )
   }
 
-  // 进阶管理二级页面
-  if (showAdvanced) {
+  // 公告管理二级页面
+  if (showAnnouncement) {
     return (
       <>
-        <AdvancedAdmin
-          onBack={() => setShowAdvanced(false)}
+        <AnnouncementAdmin
+          onBack={() => setShowAnnouncement(false)}
           busy={busy}
           announcementText={announcementText}
           setAnnouncementText={setAnnouncementText}
@@ -552,33 +552,26 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
           </div>
         </section>
 
-        {/* 进阶管理入口 */}
-        <section className="card p-5 border-amber-200 bg-amber-50/30">
+        {/* 公告管理入口 */}
+        <section className="card p-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
-                </svg>
-              </div>
-              <div>
-                <div className="font-semibold text-sm text-slate-800">进阶管理</div>
-                <div className="text-xs text-rose-600 mt-0.5 inline-flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
-                  </svg>
-                  非专业人员禁止操作
-                </div>
+            <div>
+              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <span className="w-1 h-4 bg-brand-500 rounded"></span>
+                公告管理
+              </h2>
+              <div className="text-xs text-slate-500 mt-1.5 ml-3">
+                查看和管理公告内容
               </div>
             </div>
             <button
               onClick={() => {
                 handleLoadAnnouncement()
-                setShowAdvanced(true)
+                setShowAnnouncement(true)
               }}
-              className="btn border border-amber-300 bg-white text-amber-700 hover:bg-amber-100 text-sm"
+              className="btn-primary text-sm py-1.5 px-3"
             >
-              进入进阶管理 →
+              进入公告管理 →
             </button>
           </div>
         </section>

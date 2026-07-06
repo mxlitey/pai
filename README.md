@@ -17,7 +17,7 @@
 
 ### 公告栏
 
-- 内容由管理员在后台「进阶管理 → 公告设置」中编辑保存，存储于 EdgeOne Blob（`config/announcement.json`）
+- 内容由管理员在后台「公告管理」中编辑保存，存储于 EdgeOne Blob（`config/announcement.json`）
 - 前端启动时异步加载（`GET /api/announcement`，无需鉴权），不阻塞主流程
 - 同时展示在首页与日历二级页（位于学员信息条与日历之间）
 - 支持多行文本（按回车换行），内容过多时限定最大高度并上下滚动查看
@@ -55,9 +55,7 @@
 ### 后台管理
 
 - **密码登录**：基于环境变量注入密码，HMAC-SHA256 签名 token，常量时间比较防时序攻击，token 有效期 24 小时
-- **种子数据初始化**：一键写入 8 名示例学员及对应月份排课，用于演示验证
-- **一键清空数据**：二次确认防误操作
-- **公告设置**：进阶管理页内编辑公告内容（支持 Markdown 语法，多行文本，上限 5000 字），保存即生效，前端异步加载展示
+- **公告管理**：后台公告管理页编辑公告内容（支持 Markdown 语法，多行文本，上限 5000 字），保存即生效，前端异步加载展示
 - **学员管理**：查看全部学员列表，支持新增、编辑、删除学员。可设置「总课时」，新增时剩余课时 = 总课时；编辑时修改总课时会按差额自动调整剩余课时
 - **课程管理**：查看全部课程列表，支持新增、编辑、删除课程
 - **排课列表管理**：按学员查看排课，支持单条编辑与删除
@@ -133,7 +131,7 @@ git push -u origin main
 
 > 提示：以 `VITE_` 开头的变量会在构建时被注入到前端产物中，修改后需重新触发部署（推送代码或在控制台重新部署）才能生效。`ADMIN_PASSWORD` 仅后端读取，修改即时生效。
 >
-> 公告内容通过后台「进阶管理 → 公告设置」动态管理，存储于 EdgeOne Blob，无需环境变量配置。
+> 公告内容通过后台「公告管理」动态管理，存储于 EdgeOne Blob，无需环境变量配置。
 >
 > 页脚的 GitHub 链接硬编码为本仓库地址 `https://github.com/mxlitey/pai`，无需通过环境变量配置。如需替换为其他链接，修改 [`src/config.ts`](src/config.ts) 中的 `GITHUB_URL` 即可。
 
@@ -149,11 +147,7 @@ git push -u origin main
 
 ### 步骤五：初始化数据
 
-部署完成后 Blob 存储为空，可通过「种子数据初始化」一键写入 8 名示例学员及对应排课用于演示验证：
-
-后台管理面板 → 「进阶管理」→「数据管理」→ 点击「导入测试数据」按钮。
-
-正式数据请在后台通过「学员管理」「课程管理」「排课管理」逐条录入。
+部署完成后 Blob 存储为空，正式数据请在后台通过「学员管理」「课程管理」「排课管理」逐条录入。
 
 ### 步骤六：绑定自定义域名（可选）
 
@@ -171,9 +165,7 @@ git push -u origin main
 | GET | `/api/schedules?studentId=&startDate=&endDate=` | 否 | 排课查询（按学员ID + 日期范围） |
 | GET | `/api/schedules?studentName=&startDate=&endDate=` | 否 | 排课查询（按学员姓名 + 日期范围） |
 | POST | `/api/auth` | 否 | 后台登录，返回 token |
-| POST | `/api/seed` | 是 | 初始化种子数据 |
-| POST | `/api/clear` | 是 | 清空所有数据 |
-| POST | `/api/announcement` | 是 | 保存公告内容（后台进阶管理页） |
+| POST | `/api/announcement` | 是 | 保存公告内容（后台公告管理页） |
 | GET | `/api/attendance?date=` | 是 | 获取指定日期所有排课（含出勤状态），供点名页加载 |
 | POST | `/api/attendance` | 是 | 批量设置点名，自动扣减/回退学员剩余课时 |
 | PUT | `/api/schedule-update` | 是 | 修改排课（含跨月/跨学员迁移） |
@@ -261,22 +253,17 @@ pai/
 ├── node-functions/              # 后端 Node Functions
 │   ├── _lib/
 │   │   ├── auth.js              # HMAC 签名与鉴权中间件
-│   │   ├── store.js             # Blob 存储封装
-│   │   └── seed-data.js         # 种子数据生成
+│   │   └── store.js             # Blob 存储封装
 │   └── api/
 │       ├── announcement.js        # 公告读取（GET 公开）/ 保存（POST 鉴权）
 │       ├── attendance.js          # 点名管理（GET 当日排课 / POST 批量设置）
 │       ├── auth.js              # 登录验证
 │       ├── students.js          # 学员查询
 │       ├── schedules.js         # 排课查询
-│       ├── seed.js              # 种子初始化
-│       ├── clear.js             # 清空数据
 │       ├── schedule-add.js      # 新增单条排课
 │       ├── schedule-update.js   # 排课修改
 │       ├── schedule-delete.js   # 排课删除
 │       └── student-delete.js    # 学员删除（含其排课）
-├── scripts/                     # 工具脚本
-│   └── seed-data.mjs            # 种子数据初始化脚本
 ├── src/                         # 前端源码
 │   ├── api/                     # API 调用层
 │   ├── components/
@@ -287,7 +274,7 @@ pai/
 │   │   │   ├── CourseAdmin.tsx  # 课程管理
 │   │   │   ├── ScheduleAdmin.tsx # 排课管理
 │   │   │   ├── AttendanceAdmin.tsx # 点名管理
-│   │   │   └── AdvancedAdmin.tsx # 进阶管理（公告设置 / 数据管理）
+│   │   │   └── AnnouncementAdmin.tsx # 公告管理
 │   │   ├── Announcement/        # 公告栏组件（Markdown 渲染）
 │   │   ├── Calendar/            # 日历视图组件
 │   │   └── Home/                # 简洁首页组件（类百度）
