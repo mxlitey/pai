@@ -31,6 +31,49 @@ interface AdminPanelProps {
 
 type Toast = { type: 'success' | 'error' | 'info'; message: string } | null
 
+// 后台子页面类型：null 表示后台主页，其他值表示对应二级页面
+type SubPage =
+  | 'students'
+  | 'courses'
+  | 'schedules'
+  | 'attendance'
+  | 'announcement'
+  | 'shareLinks'
+  | null
+
+// 从 URL hash 解析当前子页面：#admin/students → 'students'
+function readSubPageFromHash(): SubPage {
+  try {
+    const hash = window.location.hash
+    if (!hash.startsWith('#admin')) return null
+    const parts = hash.split('/')
+    const sub = parts[1]
+    if (!sub) return null
+    const valid: SubPage[] = [
+      'students',
+      'courses',
+      'schedules',
+      'attendance',
+      'announcement',
+      'shareLinks',
+    ]
+    return valid.includes(sub as SubPage) ? (sub as SubPage) : null
+  } catch {
+    return null
+  }
+}
+
+// 写入子页面到 URL hash：#admin 或 #admin/students
+function writeSubPageToHash(sub: SubPage) {
+  try {
+    const url = new URL(window.location.href)
+    url.hash = sub ? `admin/${sub}` : 'admin'
+    window.history.replaceState({}, '', url.toString())
+  } catch {
+    // 忽略
+  }
+}
+
 export function AdminPanel({ onExit }: AdminPanelProps) {
   // 登录状态：进入时调用后端校验 token，不依赖 localStorage 是否存在 token
   const [authed, setAuthed] = useState<boolean>(false)
@@ -46,18 +89,16 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   const [announcementText, setAnnouncementText] = useState('')
   const [announcementUpdatedAt, setAnnouncementUpdatedAt] = useState('')
 
-  // 公告管理二级页面
-  const [showAnnouncement, setShowAnnouncement] = useState(false)
-  // 分享链接二级页面
-  const [showShareLinks, setShowShareLinks] = useState(false)
-  // 学员管理二级页面
-  const [showStudentAdmin, setShowStudentAdmin] = useState(false)
-  // 课程管理二级页面
-  const [showCourseAdmin, setShowCourseAdmin] = useState(false)
-  // 排课管理二级页面
-  const [showScheduleAdmin, setShowScheduleAdmin] = useState(false)
-  // 点名管理二级页面
-  const [showAttendance, setShowAttendance] = useState(false)
+  // 当前激活的二级页面：初始值从 URL hash 恢复，避免刷新时丢失
+  const [activeSubPage, setActiveSubPage] = useState<SubPage>(() =>
+    readSubPageFromHash(),
+  )
+
+  // 切换子页面：同时更新 URL hash
+  const goSubPage = (sub: SubPage) => {
+    setActiveSubPage(sub)
+    writeSubPageToHash(sub)
+  }
 
   // 显示 toast
   const showToast = (type: Toast['type'], message: string) => {
@@ -330,11 +371,11 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   }
 
   // 公告管理二级页面
-  if (showAnnouncement) {
+  if (activeSubPage === 'announcement') {
     return (
       <>
         <AnnouncementAdmin
-          onBack={() => setShowAnnouncement(false)}
+          onBack={() => goSubPage(null)}
           busy={busy}
           announcementText={announcementText}
           setAnnouncementText={setAnnouncementText}
@@ -347,12 +388,12 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   }
 
   // 分享链接二级页面
-  if (showShareLinks) {
+  if (activeSubPage === 'shareLinks') {
     return (
       <>
         <ShareLinksAdmin
           students={students}
-          onBack={() => setShowShareLinks(false)}
+          onBack={() => goSubPage(null)}
         />
         {toast && <ToastView toast={toast} />}
       </>
@@ -360,13 +401,13 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   }
 
   // 学员管理二级页面
-  if (showStudentAdmin) {
+  if (activeSubPage === 'students') {
     return (
       <>
         <StudentAdmin
           students={students}
           busy={busy}
-          onBack={() => setShowStudentAdmin(false)}
+          onBack={() => goSubPage(null)}
           onDelete={handleDeleteStudent}
           onAdd={handleAddStudent}
           onUpdate={handleUpdateStudent}
@@ -377,13 +418,13 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   }
 
   // 课程管理二级页面
-  if (showCourseAdmin) {
+  if (activeSubPage === 'courses') {
     return (
       <>
         <CourseAdmin
           courses={courses}
           busy={busy}
-          onBack={() => setShowCourseAdmin(false)}
+          onBack={() => goSubPage(null)}
           onDelete={handleDeleteCourse}
           onAdd={handleAddCourse}
           onUpdate={handleUpdateCourse}
@@ -394,13 +435,13 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   }
 
   // 排课管理二级页面
-  if (showScheduleAdmin) {
+  if (activeSubPage === 'schedules') {
     return (
       <>
         <ScheduleAdmin
           students={students}
           courses={courses}
-          onBack={() => setShowScheduleAdmin(false)}
+          onBack={() => goSubPage(null)}
           onToast={showToast}
         />
         {toast && <ToastView toast={toast} />}
@@ -409,12 +450,12 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   }
 
   // 点名管理二级页面
-  if (showAttendance) {
+  if (activeSubPage === 'attendance') {
     return (
       <>
         <AttendanceAdmin
           busy={busy}
-          onBack={() => setShowAttendance(false)}
+          onBack={() => goSubPage(null)}
           onLoad={async (d) => {
             const r = await getAttendanceList(d)
             if (r.code !== 0) throw new Error(r.message)
@@ -497,7 +538,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
               </div>
             </div>
             <button
-              onClick={() => setShowStudentAdmin(true)}
+              onClick={() => goSubPage('students')}
               className="btn-primary text-sm py-1.5 px-3"
             >
               进入学员管理 →
@@ -518,7 +559,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
               </div>
             </div>
             <button
-              onClick={() => setShowCourseAdmin(true)}
+              onClick={() => goSubPage('courses')}
               className="btn-primary text-sm py-1.5 px-3"
             >
               进入课程管理 →
@@ -539,7 +580,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
               </div>
             </div>
             <button
-              onClick={() => setShowScheduleAdmin(true)}
+              onClick={() => goSubPage('schedules')}
               className="btn-primary text-sm py-1.5 px-3"
             >
               进入排课管理 →
@@ -560,7 +601,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
               </div>
             </div>
             <button
-              onClick={() => setShowAttendance(true)}
+              onClick={() => goSubPage('attendance')}
               className="btn-primary text-sm py-1.5 px-3"
             >
               进入点名管理 →
@@ -583,7 +624,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
             <button
               onClick={() => {
                 handleLoadAnnouncement()
-                setShowAnnouncement(true)
+                goSubPage('announcement')
               }}
               className="btn-primary text-sm py-1.5 px-3"
             >
@@ -605,7 +646,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
               </div>
             </div>
             <button
-              onClick={() => setShowShareLinks(true)}
+              onClick={() => goSubPage('shareLinks')}
               className="btn-primary text-sm py-1.5 px-3"
             >
               进入分享链接 →

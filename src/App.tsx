@@ -30,7 +30,7 @@ function clearNavState() {
       url.searchParams.delete('s')
       changed = true
     }
-    if (url.hash === '#admin') {
+    if (url.hash === '#admin' || url.hash.startsWith('#admin/')) {
       url.hash = ''
       changed = true
     }
@@ -42,11 +42,12 @@ function clearNavState() {
   }
 }
 
-// 写入 #admin hash（进入后台时调用）
+// 写入 #admin hash（进入后台时调用，子页面由 AdminPanel 内部管理）
 function setAdminHash() {
   try {
     const url = new URL(window.location.href)
-    if (url.hash !== '#admin') {
+    // 仅在完全无 hash 或非 admin 时写入基础 #admin
+    if (url.hash !== '#admin' && !url.hash.startsWith('#admin/')) {
       url.hash = 'admin'
       window.history.replaceState({}, '', url.toString())
     }
@@ -58,13 +59,13 @@ function setAdminHash() {
 export default function App() {
   // 启动时从 localStorage 恢复上次搜索的学员，实现首页刷新后回显
   // page 初始值：根据 URL 状态决定，避免刷新时被重置回首页
-  // - #admin → 后台管理
+  // - #admin 或 #admin/子页面 → 后台管理
   // - ?s= → 日历视图（学员排课页）
   // - 其他 → 首页
   const [page, setPage] = useState<PageMode>(() => {
     try {
       const url = new URL(window.location.href)
-      if (url.hash === '#admin') return 'admin'
+      if (url.hash === '#admin' || url.hash.startsWith('#admin/')) return 'admin'
       if (url.searchParams.get('s')) return 'calendar'
     } catch {
       // 忽略
