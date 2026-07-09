@@ -606,15 +606,13 @@ export async function setSetting(key, value) {
   db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=?').run(key, value, value)
 }
 
-// ========== JSON 响应工具（沿用原实现） ==========
+// ========== JSON 响应工具 ==========
+// 同源部署，无需 CORS 头；保留 Content-Type 即可
 export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   })
 }

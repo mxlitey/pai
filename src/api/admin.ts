@@ -24,6 +24,46 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY)
 }
 
+// ========== 引导初始化（首次部署创建超管） ==========
+
+// 查询当前是否处于引导模式（admin 表为空）
+// 前端据此决定展示引导页还是登录页
+export async function getBootstrapStatus(): Promise<{ bootstrap: boolean }> {
+  let resp: Response
+  try {
+    resp = await fetch(`${API_BASE}/auth/bootstrap`, {
+      signal: AbortSignal.timeout(10000),
+    })
+  } catch {
+    return { bootstrap: false }
+  }
+  const result = await resp.json().catch(() => ({ code: -1, data: { bootstrap: false } }))
+  if (result.code === 0) {
+    return { bootstrap: !!result.data?.bootstrap }
+  }
+  return { bootstrap: false }
+}
+
+// 引导创建超管账号
+// 仅在系统未初始化时可用；创建成功后引导模式自动关闭
+export async function bootstrapSuperAdmin(
+  password: string,
+  confirmPassword: string,
+): Promise<ApiResult<{ username: string }>> {
+  let resp: Response
+  try {
+    resp = await fetch(`${API_BASE}/auth/bootstrap`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, confirmPassword }),
+      signal: AbortSignal.timeout(15000),
+    })
+  } catch {
+    return { code: -1, message: '网络请求失败，请检查网络连接', data: null as any }
+  }
+  return resp.json()
+}
+
 // ========== 登录 ==========
 export async function login(password: string): Promise<ApiResult<{ token: string }>> {
   let resp: Response

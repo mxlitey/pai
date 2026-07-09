@@ -6,16 +6,9 @@ import { requireAuth } from '../_lib/auth.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
-// 预检放行
+// 预检放行（同源部署，仅返回 204）
 function corsOk() {
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    },
-  })
+  return new Response(null, { status: 204 })
 }
 
 // 获取指定日期所有排课（按时间升序），供点名页加载

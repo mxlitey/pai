@@ -41,18 +41,13 @@ async function handleLogin(context) {
       )
     }
 
-    const result = await authenticate(input, env)
+    // 纯 admin 表模式，不再传 env
+    const result = await authenticate(input)
     if (!result.ok) {
       return json({ code: 1, message: result.message || '密码错误', data: null }, 401)
     }
 
     const secret = getTokenSecret(env)
-    if (!secret) {
-      return json(
-        { code: 1, message: '服务暂不可用，请稍后重试', data: null },
-        500,
-      )
-    }
     const token = await signToken(secret)
     return json({
       code: 0,
@@ -73,12 +68,6 @@ async function handleVerify(context) {
   try {
     const { request, env } = context
     const secret = getTokenSecret(env)
-    if (!secret) {
-      return json(
-        { code: 1, message: '服务端未配置 token 密钥', data: null },
-        500,
-      )
-    }
     const token = extractToken(request)
     const ok = await verifyToken(token, secret)
     if (!ok) {
@@ -155,15 +144,9 @@ async function handleBootstrapStatus() {
 
 export default async function onRequest(context) {
   const { request } = context
+  // 同源部署无需 CORS 预检，OPTIONS 直接返回 204
   if (request.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      },
-    })
+    return new Response(null, { status: 204 })
   }
   if (request.method === 'POST') {
     const url = new URL(request.url)

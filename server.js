@@ -158,11 +158,8 @@ async function writeWebResponse(webResp, res) {
 
 // 主请求处理
 async function handleRequest(req, res) {
-  // CORS 预检
+  // 同源部署无需 CORS 预检，OPTIONS 直接返回 204
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     res.statusCode = 204
     res.end()
     return

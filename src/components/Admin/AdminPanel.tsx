@@ -15,6 +15,7 @@ import {
   deleteCourse,
   getToken,
   clearToken,
+  getBootstrapStatus,
 } from '@/api/admin'
 import { AnnouncementAdmin } from './AnnouncementAdmin'
 import { ShareLinksAdmin } from './ShareLinksAdmin'
@@ -23,6 +24,7 @@ import { CourseAdmin } from './CourseAdmin'
 import { ScheduleAdmin } from './ScheduleAdmin'
 import { AttendanceAdmin } from './AttendanceAdmin'
 import { AdminLogin } from './AdminLogin'
+import { Bootstrap } from './Bootstrap'
 import { cn } from '@/utils/cn'
 
 interface AdminPanelProps {
@@ -75,7 +77,9 @@ function writeSubPageToHash(sub: SubPage) {
 }
 
 export function AdminPanel({ onExit }: AdminPanelProps) {
-  // 登录状态：进入时调用后端校验 token，不依赖 localStorage 是否存在 token
+  // 启动流程：先检查 bootstrap 状态，再校验 token
+  // bootstrap=true → 渲染引导页；bootstrap=false → 检查 token 决定登录/已登录
+  const [bootstrap, setBootstrap] = useState<boolean | null>(null) // null=检查中
   const [authed, setAuthed] = useState<boolean>(false)
   const [checking, setChecking] = useState<boolean>(true)
   const [students, setStudents] = useState<Student[]>([])
@@ -139,11 +143,24 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     }
   }, [])
 
-  // 进入管理页时调用后端校验 token 有效性
-  // 防止攻击者在 localStorage 写入伪造 token 绕过前端登录页
+  // 启动检查流程：
+  // 1. 查询 bootstrap 状态
+  // 2. 若处于引导模式 → 渲染引导页（不再检查 token）
+  // 3. 否则校验 token：有效则直接进入后台，无效则展示登录页
   useEffect(() => {
     let cancelled = false
-    async function checkAuth() {
+    async function checkEntry() {
+      // 第一步：查询引导状态
+      const { bootstrap: bs } = await getBootstrapStatus()
+      if (cancelled) return
+      if (bs) {
+        setBootstrap(true)
+        setChecking(false)
+        return
+      }
+      setBootstrap(false)
+
+      // 第二步：非引导模式，校验 token
       if (!getToken()) {
         setChecking(false)
         setAuthed(false)
@@ -163,11 +180,17 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
         if (!cancelled) setChecking(false)
       }
     }
-    checkAuth()
+    checkEntry()
     return () => {
       cancelled = true
     }
   }, [])
+
+  // 引导创建成功后：切换到登录页
+  const handleBootstrapSuccess = () => {
+    setBootstrap(false)
+    setAuthed(false)
+  }
 
   // 鉴权通过后再加载数据
   useEffect(() => {
@@ -354,9 +377,16 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          校验登录状态…
+          初始化中…
         </div>
       </div>
+    )
+  }
+
+  // 引导模式：系统未初始化，渲染超管账号创建页
+  if (bootstrap) {
+    return (
+      <Bootstrap onSuccess={handleBootstrapSuccess} onExit={onExit} />
     )
   }
 
