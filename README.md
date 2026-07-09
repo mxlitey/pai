@@ -145,6 +145,115 @@ git push -u origin main
 
 ***
 
+## 🐳 Docker 部署（自托管）
+
+除 EdgeOne Makers 边缘部署外，本项目也支持通过 Docker 自托管运行。Docker 版后端运行于 Node.js，数据存储使用 SQLite（单文件持久化），无需外部数据库，适合私有服务器、内网或单机场景。
+
+### 架构差异
+
+| 项 | EdgeOne 版 | Docker 版 |
+|----|-----------|-----------|
+| 后端运行时 | EdgeOne 边缘函数 | Node.js 18+ |
+| 数据存储 | EdgeOne Pages Blob（对象存储） | SQLite（单文件） |
+| 静态资源 | 边缘节点分发 | Node 服务托管 `dist/` |
+| 数据持久化 | 平台托管 | Docker Volume 挂载 |
+| 并发安全 | 模块级写锁（单实例） | SQLite 事务（ACID） |
+| 多实例水平扩展 | 支持 | 不支持（SQLite 单机） |
+
+> Docker 版与 EdgeOne 版功能完全一致，仅运行时与存储层不同，API 行为对前端透明。
+
+### 前置条件
+
+1. 已安装 Docker（20.10+）与 Docker Compose（可选）
+2. 服务器开放对外端口（默认 8788）
+3. 准备好管理密码与 token 密钥
+
+### 方式一：docker run
+
+```bash
+docker run -d \
+  --name pai \
+  -p 8788:8788 \
+  -v pai-data:/app/data \
+  -e ADMIN_PASSWORD='your-strong-password' \
+  -e ADMIN_TOKEN_SECRET='your-random-secret' \
+  -e VITE_APP_NAME='排课系统' \
+  --restart unless-stopped \
+  pai:latest
+```
+
+### 方式二：docker-compose（推荐）
+
+新建 `docker-compose.yml`：
+
+```yaml
+services:
+  pai:
+    image: pai:latest
+    container_name: pai
+    restart: unless-stopped
+    ports:
+      - "8788:8788"
+    volumes:
+      - pai-data:/app/data
+    environment:
+      ADMIN_PASSWORD: "your-strong-password"
+      ADMIN_TOKEN_SECRET: "your-random-secret"
+      VITE_APP_NAME: "排课系统"
+
+volumes:
+  pai-data:
+```
+
+启动：
+
+```bash
+docker compose up -d
+```
+
+查看日志：
+
+```bash
+docker compose logs -f pai
+```
+
+### 环境变量
+
+| 变量名 | 必填 | 说明 |
+|--------|------|------|
+| `ADMIN_PASSWORD` | 是 | 后台管理登录密码 |
+| `ADMIN_TOKEN_SECRET` | 否 | token 签名密钥，推荐配置以与登录密码解耦；未配置时回退到 `ADMIN_PASSWORD` |
+| `VITE_APP_NAME` | 否 | 项目名称，显示在首页与各页标题。未设置时默认「排课系统」；**构建期注入**，修改后需重新构建镜像 |
+
+> 数据库文件默认位于容器内 `/app/data/pai.db`，请务必通过 Volume 挂载持久化，否则容器重建会丢失数据。
+
+### 本地构建镜像
+
+若需修改代码后自行构建：
+
+```bash
+git clone https://github.com/mxlitey/pai.git
+cd pai
+git checkout docker
+docker build -t pai:latest .
+docker run -d -p 8788:8788 -v pai-data:/app/data \
+  -e ADMIN_PASSWORD='your-strong-password' pai:latest
+```
+
+### 验证部署
+
+1. 访问 `http://<服务器IP>:8788`，确认首页正常加载
+2. 首页搜索框输入学员姓名，验证排课查询
+3. 点击首页右上角齿轮图标，输入密码登录验证管理功能
+4. 反向代理（可选）：使用 Nginx / Caddy 转发至 `127.0.0.1:8788` 并配置 HTTPS
+
+### 数据备份与迁移
+
+- **备份**：直接复制 `/app/data/pai.db` 文件即可
+- **从 EdgeOne 迁移**：参考根目录迁移脚本，将 Blob 中的 JSON 数据一次性导入 SQLite
+
+***
+
 ## 📡 API 一览
 
 | 方法 | 路径 | 鉴权 | 说明 |
