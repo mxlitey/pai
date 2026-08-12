@@ -1,6 +1,6 @@
 // 排课搜索 API（跨学员）
-// GET /api/schedules-search?startDate=2026-07-01&endDate=2026-07-31&courseId=c001
-// 支持按日期范围 + 可选课程 ID 过滤；任一参数可单独使用，也可组合使用
+// GET /api/schedules-search?startDate=2026-07-01&endDate=2026-07-31&courseId=c001&studentId=s001
+// 支持按日期范围 + 可选课程 ID + 可选学员 ID 过滤；任一参数可单独使用，也可组合使用
 // 全部参数缺省时返回全量排课（按日期+时间升序）
 // 该接口为后台管理端使用，需登录鉴权
 import { searchSchedules, json } from '../_lib/store.js'
@@ -16,6 +16,7 @@ export default async function onRequestGet(context) {
   const startDate = url.searchParams.get('startDate') || ''
   const endDate = url.searchParams.get('endDate') || ''
   const courseId = url.searchParams.get('courseId') || ''
+  const studentId = url.searchParams.get('studentId') || ''
 
   // 日期格式校验：传了就必须合法，避免脏输入触发异常分支
   if (startDate && !DATE_RE.test(startDate)) {
@@ -42,6 +43,7 @@ export default async function onRequestGet(context) {
       startDate,
       endDate,
       courseId,
+      studentId,
     })
     return json({ code: 0, message: 'ok', data: { schedules, total: schedules.length } })
   } catch (e) {

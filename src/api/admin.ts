@@ -266,17 +266,19 @@ export async function batchAddSchedules(body: {
   })
 }
 
-// 跨学员搜索排课：按日期范围 + 可选课程 ID 过滤
+// 跨学员搜索排课：按日期范围 + 可选课程 ID + 可选学员 ID 过滤
 // 任一参数可缺省；全部缺省时返回全量排课
 export async function searchSchedules(params: {
   startDate?: string
   endDate?: string
   courseId?: string
+  studentId?: string
 }): Promise<ApiResult<{ schedules: Schedule[]; total: number }>> {
   const qs = new URLSearchParams()
   if (params.startDate) qs.set('startDate', params.startDate)
   if (params.endDate) qs.set('endDate', params.endDate)
   if (params.courseId) qs.set('courseId', params.courseId)
+  if (params.studentId) qs.set('studentId', params.studentId)
   const query = qs.toString()
   return request(`${API_BASE}/schedules-search${query ? '?' + query : ''}`, { method: 'GET' })
 }

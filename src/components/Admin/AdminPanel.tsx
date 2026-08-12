@@ -443,6 +443,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
           courses={courses}
           onBack={() => goSubPage(null)}
           onToast={showToast}
+          onRefreshStudents={loadStudents}
         />
         {toast && <ToastView toast={toast} />}
       </>

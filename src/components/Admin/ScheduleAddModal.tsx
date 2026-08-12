@@ -9,6 +9,7 @@ interface ScheduleAddModalProps {
   students: Student[]
   onClose: () => void
   onUpdated: () => void
+  onRefreshStudents: () => Promise<void>
 }
 
 // 从学员列表提取所有年级（去重 + 排序，空年级不展示）
@@ -21,10 +22,10 @@ function collectGrades(students: Student[]): string[] {
   return Array.from(set).sort()
 }
 
-export function ScheduleAddModal({ courses, students, onClose, onUpdated }: ScheduleAddModalProps) {
+export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefreshStudents }: ScheduleAddModalProps) {
   const [courseId, setCourseId] = useState('')
-  // 多日期：用户输入日期后点"添加"加入列表
-  const [dateInput, setDateInput] = useState(() => new Date().toISOString().slice(0, 10))
+  // 多日期：点击日期选择器选中日期，再次点击取消选中
+  const [dateInput, setDateInput] = useState('')
   const [dates, setDates] = useState<string[]>([])
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
@@ -37,6 +38,7 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated }: Sche
   const [search, setSearch] = useState('')
 
   const [saving, setSaving] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -48,6 +50,19 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated }: Sche
 
   // 所有年级列表
   const grades = useMemo(() => collectGrades(students), [students])
+
+  // 刷新学员列表（在其他页面新增学员后，点此拉取最新数据）
+  const handleRefreshStudents = async () => {
+    setRefreshing(true)
+    try {
+      await onRefreshStudents()
+      setError('')
+    } catch (e) {
+      setError('刷新学员列表失败：' + (e as Error).message)
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   // 选课程时自动填充默认值，并清空已选学员（避免误操作）
   useEffect(() => {
@@ -103,19 +118,24 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated }: Sche
     setSuccess('')
   }
 
-  // 添加日期
-  const handleAddDate = () => {
+  // 日期选择：点击选中，再次点击取消选中
+  const handleToggleDate = (value: string) => {
     setError('')
     setSuccess('')
-    if (!dateInput || !/^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       setError('日期格式应为 yyyy-MM-dd')
       return
     }
-    if (dates.includes(dateInput)) {
-      setError('该日期已添加')
-      return
-    }
-    setDates((prev) => [...prev, dateInput].sort())
+    setDates((prev) => {
+      if (prev.includes(value)) {
+        // 已存在则取消选中
+        return prev.filter((x) => x !== value)
+      }
+      // 不存在则选中并排序
+      return [...prev, value].sort()
+    })
+    // 重置输入框，便于再次点击同一天取消选中或继续选择其他日期
+    setDateInput('')
   }
 
   // 移除日期
@@ -157,8 +177,9 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated }: Sche
       if (result.code === 0) {
         const msg = `已新增 ${result.data.created} 条排课` + (result.data.skipped > 0 ? `，跳过 ${result.data.skipped} 条重复` : '')
         setSuccess(msg)
-        // 连续新增：清空日期，保留课程/年级/学员选择方便下一次操作
+        // 连续新增：清空日期与已选学员，避免下一次误把上一次的学员再次排课
         setDates([])
+        setSelectedStudentIds(new Set())
         // 通知父组件刷新数据
         onUpdated()
       } else {
@@ -250,19 +271,14 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated }: Sche
                 <input
                   type="date"
                   value={dateInput}
-                  onChange={(e) => setDateInput(e.target.value)}
+                  onChange={(e) => handleToggleDate(e.target.value)}
                   className={inputClass}
+                  title="点击日期选中，再次点击同一日期可取消选中"
                 />
-                <button
-                  type="button"
-                  onClick={handleAddDate}
-                  className="btn-primary text-xs py-2 px-3 whitespace-nowrap"
-                >
-                  添加
-                </button>
+                <span className="text-xs text-slate-400 whitespace-nowrap">点击选中 / 取消</span>
               </div>
               {dates.length === 0 ? (
-                <div className="text-xs text-slate-400">尚未添加日期，可添加多个日期一次性排课</div>
+                <div className="text-xs text-slate-400">尚未选择日期，可点击多个日期一次性排课</div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {dates.map((d) => (
@@ -362,6 +378,23 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated }: Sche
                   className="text-xs text-brand-600 hover:text-brand-700 font-medium px-2 py-1 disabled:opacity-40 whitespace-nowrap"
                 >
                   {allFilteredSelected ? '取消全选' : '全选'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRefreshStudents}
+                  disabled={refreshing}
+                  title="刷新学员列表（在其他页面新增学员后点此拉取最新数据）"
+                  className="text-xs text-slate-500 hover:text-brand-600 font-medium px-2 py-1 disabled:opacity-40 whitespace-nowrap flex items-center gap-1"
+                >
+                  <svg
+                    className={cn('w-3.5 h-3.5', refreshing && 'animate-spin')}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {refreshing ? '刷新中' : '刷新'}
                 </button>
               </div>
               {/* 已选计数 */}
