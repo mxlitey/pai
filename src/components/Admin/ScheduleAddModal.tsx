@@ -24,9 +24,9 @@ function collectGrades(students: Student[]): string[] {
 
 export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefreshStudents }: ScheduleAddModalProps) {
   const [courseId, setCourseId] = useState('')
-  // 多日期：点击日期选择器选中日期，再次点击取消选中
-  const [dateInput, setDateInput] = useState('')
+  // 多日期：在日历中多选后点击「添加」一次性提交
   const [dates, setDates] = useState<string[]>([])
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [teacher, setTeacher] = useState('')
@@ -118,24 +118,18 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
     setSuccess('')
   }
 
-  // 日期选择：点击选中，再次点击取消选中
-  const handleToggleDate = (value: string) => {
+  // 批量添加日期（从日历多选后一次性提交）
+  const handleAddDates = (newDates: string[]) => {
     setError('')
     setSuccess('')
-    if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      setError('日期格式应为 yyyy-MM-dd')
-      return
-    }
     setDates((prev) => {
-      if (prev.includes(value)) {
-        // 已存在则取消选中
-        return prev.filter((x) => x !== value)
+      const set = new Set(prev)
+      for (const d of newDates) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) continue
+        set.add(d)
       }
-      // 不存在则选中并排序
-      return [...prev, value].sort()
+      return Array.from(set).sort()
     })
-    // 重置输入框，便于再次点击同一天取消选中或继续选择其他日期
-    setDateInput('')
   }
 
   // 移除日期
@@ -267,18 +261,33 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
               <span className="text-rose-500 mr-0.5">*</span>日期
             </span>
             <div className="flex-1 space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={dateInput}
-                  onChange={(e) => handleToggleDate(e.target.value)}
-                  className={inputClass}
-                  title="点击日期选中，再次点击同一日期可取消选中"
+              <button
+                type="button"
+                onClick={() => setCalendarOpen((o) => !o)}
+                className={inputClass + ' text-left flex items-center justify-between'}
+              >
+                <span className={dates.length > 0 ? 'text-slate-700' : 'text-slate-400'}>
+                  {dates.length > 0 ? `已选 ${dates.length} 个日期` : '点击打开日历选择日期'}
+                </span>
+                <svg
+                  className={cn('w-4 h-4 text-slate-400 transition-transform', calendarOpen && 'rotate-180')}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {calendarOpen && (
+                <MultiDateCalendar
+                  committedDates={dates}
+                  onAddDates={handleAddDates}
+                  onRemoveDate={handleRemoveDate}
+                  onClose={() => setCalendarOpen(false)}
                 />
-                <span className="text-xs text-slate-400 whitespace-nowrap">点击选中 / 取消</span>
-              </div>
+              )}
               {dates.length === 0 ? (
-                <div className="text-xs text-slate-400">尚未选择日期，可点击多个日期一次性排课</div>
+                <div className="text-xs text-slate-400">尚未选择日期，可在日历中多选后点击「添加」一次性提交</div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
                   {dates.map((d) => (
@@ -478,6 +487,179 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
             {saving
               ? '保存中…'
               : `新增排课${dates.length * selectedStudentIds.size > 0 ? `（${dates.length} 日 × ${selectedStudentIds.size} 人 = ${dates.length * selectedStudentIds.size} 条）` : ''}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ========== 多选日历组件 ==========
+// 在日历中点击多个日期切换选中（待添加），点击「添加」一次性提交；
+// 已添加的日期显示为绿色，再次点击可移除。
+
+const WEEKDAY_LABELS = ['日', '一', '二', '三', '四', '五', '六']
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+function toDateStr(y: number, m: number, d: number) {
+  return `${y}-${pad2(m + 1)}-${pad2(d)}`
+}
+
+interface MultiDateCalendarProps {
+  committedDates: string[]
+  onAddDates: (dates: string[]) => void
+  onRemoveDate: (date: string) => void
+  onClose: () => void
+}
+
+function MultiDateCalendar({ committedDates, onAddDates, onRemoveDate, onClose }: MultiDateCalendarProps) {
+  const today = new Date()
+  const [viewYear, setViewYear] = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth()) // 0-11
+  const [pending, setPending] = useState<Set<string>>(new Set())
+
+  const committedSet = useMemo(() => new Set(committedDates), [committedDates])
+  const todayStr = toDateStr(today.getFullYear(), today.getMonth(), today.getDate())
+
+  // 构建当前月份的日历网格（含前置空格）
+  const cells = useMemo(() => {
+    const startWeekday = new Date(viewYear, viewMonth, 1).getDay() // 0=周日
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+    const list: (string | null)[] = []
+    for (let i = 0; i < startWeekday; i++) list.push(null)
+    for (let d = 1; d <= daysInMonth; d++) list.push(toDateStr(viewYear, viewMonth, d))
+    while (list.length % 7 !== 0) list.push(null)
+    return list
+  }, [viewYear, viewMonth])
+
+  const goPrevMonth = () => {
+    if (viewMonth === 0) {
+      setViewMonth(11)
+      setViewYear((y) => y - 1)
+    } else {
+      setViewMonth((m) => m - 1)
+    }
+  }
+  const goNextMonth = () => {
+    if (viewMonth === 11) {
+      setViewMonth(0)
+      setViewYear((y) => y + 1)
+    } else {
+      setViewMonth((m) => m + 1)
+    }
+  }
+
+  const handleDayClick = (date: string) => {
+    if (committedSet.has(date)) {
+      // 已添加：再次点击移除
+      onRemoveDate(date)
+      return
+    }
+    setPending((prev) => {
+      const next = new Set(prev)
+      if (next.has(date)) next.delete(date)
+      else next.add(date)
+      return next
+    })
+  }
+
+  const handleAdd = () => {
+    if (pending.size === 0) return
+    onAddDates(Array.from(pending))
+    setPending(new Set())
+  }
+
+  const monthLabel = `${viewYear} 年 ${viewMonth + 1} 月`
+
+  return (
+    <div className="border border-slate-200 rounded-md p-3 bg-white">
+      {/* 月份导航 */}
+      <div className="flex items-center justify-between mb-2">
+        <button
+          type="button"
+          onClick={goPrevMonth}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 text-slate-500"
+          aria-label="上个月"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <span className="text-sm font-medium text-slate-700">{monthLabel}</span>
+        <button
+          type="button"
+          onClick={goNextMonth}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 text-slate-500"
+          aria-label="下个月"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* 星期表头 */}
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {WEEKDAY_LABELS.map((w) => (
+          <div key={w} className="text-center text-xs text-slate-400 py-1">{w}</div>
+        ))}
+      </div>
+
+      {/* 日期网格 */}
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((date, idx) => {
+          if (!date) return <div key={`blank-${idx}`} />
+          const isCommitted = committedSet.has(date)
+          const isPending = pending.has(date)
+          const isToday = date === todayStr
+          return (
+            <button
+              key={date}
+              type="button"
+              onClick={() => handleDayClick(date)}
+              className={cn(
+                'h-8 rounded text-xs transition-colors flex items-center justify-center',
+                isCommitted && 'bg-green-100 text-green-700 border border-green-300 font-medium',
+                !isCommitted && isPending && 'bg-brand-500 text-white border border-brand-500 font-medium',
+                !isCommitted && !isPending && 'text-slate-600 hover:bg-slate-100 border border-transparent',
+                isToday && !isCommitted && !isPending && 'ring-1 ring-brand-300',
+              )}
+              title={isCommitted ? `${date}（已添加，点击移除）` : date}
+            >
+              {Number(date.slice(-2))}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* 图例 + 操作 */}
+      <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+        <div className="flex items-center gap-3 text-[11px] text-slate-400">
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded bg-brand-500" />待添加
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded bg-green-100 border border-green-300" />已添加
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs text-slate-500 hover:text-slate-700 px-2 py-1"
+          >
+            收起
+          </button>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={pending.size === 0}
+            className="btn-primary text-xs py-1 px-3 disabled:opacity-50"
+          >
+            {pending.size > 0 ? `添加 ${pending.size} 个日期` : '添加'}
           </button>
         </div>
       </div>
