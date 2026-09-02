@@ -18,6 +18,12 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `parse_docx({filePath})` — 解析本地 docx，返回正文段落 + 全部表格文本
 - `parse_xlsx({filePath})` — 解析本地 xlsx，返回全部工作表文本（支持合并单元格、日期、数字）
 
+**本地脚本（通过 Shell 执行，依赖后端鉴权）**：
+- `cd mcp-server && node build-schedule-page.mjs [YYYY-MM] [选项]`（在项目根目录执行）— 排课总览页生成器，从后端实时拉数据生成 HTML 看板
+  - 月份缺省为当前月；`--makeup=日期[,日期...]` 标记补课日；`--out=文件名` 指定输出；`--title=标题` 覆盖主标题
+  - 自动统计：排课条数/训练日期/学员/班型；请假自动识别（同班型有课但该学员缺席 → ✕）
+  - 输出 HTML 文件到当前工作目录，生成后告知用户文件路径
+
 **鉴权读**：
 - `search_schedules({startDate?, endDate?, courseId?, studentId?})` — 跨学员搜索排课
 - `list_courses()` — 课程列表（含颜色、默认时间）
@@ -27,8 +33,8 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `batch_add_schedules({courseId, courseName, color?, dates[], startTime?, endTime?, note?, studentIds[]})` — 多学员×多日期批量排课
 - `update_schedule({old, new})` — 修改排课（id 必须一致，支持跨学员/跨月迁移）
 - `delete_schedule({confirm, id, studentId, date})` — 删单条排课
-- `add_student({id, name})` / `update_student({id, name})` / `delete_student({confirm, studentId})`
-- `add_course / update_course / delete_course({confirm, courseId})`
+- `add_student({name})` / `update_student({id, name})` / `delete_student({confirm, studentId})`
+- `add_course({name, ...})` / `update_course / delete_course({confirm, courseId})`
 - `save_announcement({content})` — 保存公告（Markdown，上限 5000 字，空串=清空）
 
 ## 字段规范（严格遵守）
@@ -59,6 +65,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 4. `batch_add_schedules({courseId, courseName, color, dates, studentIds, startTime?, endTime?})` — 时间缺省时用课程默认时间
 5. 向用户报告 `{created, skipped, errors}`；skipped/errors 非零时逐条解释
 6. `search_schedules({startDate, endDate})` 复核结果并展示
+7. **批量排课完成后执行看板生成脚本**（见第 5 节），把生成的 HTML 文件路径告知用户
 
 ### 3. 调课（update）
 用户说"把张伟周二的课挪到周五 15:00"：
@@ -68,7 +75,15 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 4. 后端自动处理跨月/跨学员迁移，返回 `moved` 标记
 
 ### 4. 新增学员/课程后立即排课
-新增学员 → `add_student`（自选一个不冲突的 id，如 `s` + 时间戳）→ 直接进入批量排课流程。
+- 新增学员 → `add_student({name})`（后端自动生成 ID，传入 ID 会被忽略）→ **`list_students` 回读一次拿真实 studentId** → 再进入批量排课流程。
+- 新增课程 → `add_course`（后端自动生成 `c_xxx` 格式的 ID，传入 ID 会被忽略）→ **必须重新 `list_courses` 回读一次拿到真实 courseId** → 再进入排课流程。新建后直接用传入的 ID 排课会全部落空。
+
+### 5. 生成排课看板（HTML 总览页）
+触发时机：**批量排课完成后**；或用户要求"看某月排课/看板/总览/导出排课表"时。
+1. 执行 `cd mcp-server && node build-schedule-page.mjs [YYYY-MM]`（在项目根目录执行；用户说"这个月/8月"等时换算为 YYYY-MM）
+2. 用户提到补课日期时加 `--makeup=日期,日期`；用户指定输出名/标题时加 `--out=` / `--title=`
+3. 脚本会输出统计摘要（排课条数/日期/学员/班型/请假人次），如实转述
+4. 把生成的 HTML 文件路径告知用户，可直接用浏览器打开或打印
 
 ## 安全边界（强制）
 
