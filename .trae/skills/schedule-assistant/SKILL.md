@@ -74,8 +74,9 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
    - 确认后才传 `confirm: true` 执行
 2. **不代用户猜测**：学员重名、课程名不确定、日期歧义（"周末"是周六还是周日）时，先澄清再操作
 3. **写操作前先读**：排课前必须先 `list_students` + `list_courses` 核实 ID，不要凭记忆编造 ID
-4. **报告结果**：所有写操作完成后主动展示后端返回结果，失败时如实报告，不静默吞错
-5. **公告**：修改公告前先 `get_announcement` 展示当前内容，确认用户意图后再保存
+4. **串行执行写操作**：涉及同一学员或多条写操作时，**禁止并行调用**写工具（含 `update_schedule`、`update_student` 等多人批量修复场景）。后端 Blob 存储为读-改-写模式，并发写同一文件会相互覆盖（竞态丢数据）。必须逐条串行执行：调用一条 → 等返回成功 → 再调下一条。若某条失败，重试该条后再继续
+5. **报告结果**：所有写操作完成后主动展示后端返回结果，失败时如实报告，不静默吞错
+6. **公告**：修改公告前先 `get_announcement` 展示当前内容，确认用户意图后再保存
 
 ## 错误处理
 
@@ -83,3 +84,15 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - 工具报"无法连接后端" → 检查 PAI_BASE_URL 与后端部署状态
 - 401/登录失败 → 提示检查 PAI_ADMIN_PASSWORD 是否正确（server 会自动重试，连续失败才需人工介入）
 - `batch_add_schedules` 返回 errors 时，逐条说明失败原因（如 id 碰撞），建议重试
+
+## 历史数据规范（重要）
+
+- **历史排课记录的 `startTime`/`endTime` 可能为空串**（早期批量导入未写入时间）。修复时用 `update_schedule` 补上正确时间，时间值参考课程默认时间（`list_courses` 查询）
+- **`old` 必须原样传读到的完整记录**：不要凭记忆重构、不要省略或"修正"任何字段（包括空串、缺失的 courseId/color），否则后端定位不到记录
+- 历史记录可能缺少 `courseId` 或 `color`，属正常现象，不要因此判定数据损坏
+
+## 文件导入（xlsx/docx 签到表）
+
+- 解析 docx 用 PowerShell + .NET Zip API 或脚本提取表格；**解析结果写 UTF-8 文件**（如 `test-files/docx-parsed.txt`），不要直接输出控制台（中文会乱码）
+- `test-files/` 目录已被 gitignore，测试文件放这里不会推送到远程
+- 导入签到表流程：解析表格 → `list_students` + `list_courses` 核对姓名与课程 → 逐条 `add_schedule`（串行）→ `search_schedules` 复核

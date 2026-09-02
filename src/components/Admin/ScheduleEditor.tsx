@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import type { Course, Schedule, Student } from '@/types'
 import { updateSchedule, deleteSchedule } from '@/api/admin'
 import { cn } from '@/utils/cn'
+import { getCourseDotClass } from '@/utils/courseColors'
 
 interface ScheduleEditorProps {
   schedule: Schedule | null
@@ -63,17 +64,25 @@ export function ScheduleEditor({
         const student = students.find((s) => s.id === value)
         next.studentName = student?.name || ''
       }
-      // 课程名称匹配到已有课程时，带出课程关联信息与默认时间段
-      if (field === 'courseName') {
-        const course = courses.find((c) => c.name === value.trim())
-        if (course) {
-          next.courseId = course.id
-          next.courseName = course.name
-          if (course.color) next.color = course.color
-          // 课程配置了默认时间则带出；未配置则保留现值
-          if (course.defaultStartTime) next.startTime = course.defaultStartTime
-          if (course.defaultEndTime) next.endTime = course.defaultEndTime
-        }
+      return next
+    })
+    setError('')
+    setSuccess('')
+  }
+
+  // 课程下拉选择：选中后带出课程名称、颜色与默认时间段
+  const handleCourseSelect = (courseId: string) => {
+    setForm((f) => {
+      const next = { ...f, courseId }
+      const course = courses.find((c) => c.id === courseId)
+      if (course) {
+        next.courseName = course.name
+        if (course.color) next.color = course.color
+        // 课程配置了默认时间则带出；未配置则保留现值
+        if (course.defaultStartTime) next.startTime = course.defaultStartTime
+        if (course.defaultEndTime) next.endTime = course.defaultEndTime
+      } else {
+        next.courseName = ''
       }
       return next
     })
@@ -86,8 +95,8 @@ export function ScheduleEditor({
     setSuccess('')
 
     // 校验
-    if (!form.courseName.trim()) {
-      setError('课程名称不能为空')
+    if (!form.courseId && !form.courseName.trim()) {
+      setError('请选择课程')
       return
     }
     if (!form.date || !/^\d{4}-\d{2}-\d{2}$/.test(form.date)) {
@@ -199,28 +208,54 @@ export function ScheduleEditor({
             />
           </div>
 
-          {/* 课程名称（带课程建议，选中后自动带出时间段） */}
+          {/* 课程选择（与新增排课一致，选中后自动带出时间段） */}
           <div className="flex items-start gap-4">
             <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
-              <span className="text-rose-500 mr-0.5">*</span>课程名称
+              <span className="text-rose-500 mr-0.5">*</span>课程
             </span>
-            <input
-              type="text"
-              list="schedule-editor-courses"
-              value={form.courseName}
-              onChange={(e) => handleChange('courseName', e.target.value)}
-              className={inputClass}
-              placeholder="如：数学提高班"
-            />
-            <datalist id="schedule-editor-courses">
-              {courses.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.defaultStartTime && c.defaultEndTime
-                    ? `默认 ${c.defaultStartTime}-${c.defaultEndTime}`
-                    : '无默认时间'}
-                </option>
-              ))}
-            </datalist>
+            <div className="flex-1">
+              {courses.length === 0 ? (
+                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                  暂无课程，请先在「课程管理」中新增课程
+                </div>
+              ) : (
+                <select
+                  value={form.courseId}
+                  onChange={(e) => handleCourseSelect(e.target.value)}
+                  className={inputClass}
+                >
+                  {/* 占位项：历史记录未关联课程时显示原课程名，否则为通用提示 */}
+                  <option value="">
+                    {form.courseId
+                      ? '请选择课程…'
+                      : form.courseName
+                        ? `${form.courseName}（未关联课程）`
+                        : '请选择课程…'}
+                  </option>
+                  {/* 历史记录关联的课程已被删除时，保留该项避免显示错乱 */}
+                  {form.courseId && !courses.some((c) => c.id === form.courseId) && (
+                    <option value={form.courseId}>{form.courseName}（原课程，已删除）</option>
+                  )}
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {(() => {
+                const course = courses.find((c) => c.id === form.courseId)
+                if (course) {
+                  return (
+                    <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-500">
+                      <span className={cn('inline-block w-2.5 h-2.5 rounded-full', getCourseDotClass(course.color))} />
+                      <span className="font-mono">{course.id}</span>
+                    </div>
+                  )
+                }
+                return null
+              })()}
+            </div>
           </div>
 
           {/* 日期 */}

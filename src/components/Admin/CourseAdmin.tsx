@@ -296,12 +296,16 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
       setError('课程名称不能为空')
       return
     }
-    if (form.defaultStartTime && !/^\d{2}:\d{2}$/.test(form.defaultStartTime)) {
-      setError('默认开始时间需同时选择小时和分钟')
+    if (!form.defaultStartTime || !/^\d{2}:\d{2}$/.test(form.defaultStartTime)) {
+      setError('请选择默认开始时间（小时和分钟均为必填）')
       return
     }
-    if (form.defaultEndTime && !/^\d{2}:\d{2}$/.test(form.defaultEndTime)) {
-      setError('默认结束时间需同时选择小时和分钟')
+    if (!form.defaultEndTime || !/^\d{2}:\d{2}$/.test(form.defaultEndTime)) {
+      setError('请选择默认结束时间（小时和分钟均为必填）')
+      return
+    }
+    if (form.defaultStartTime >= form.defaultEndTime) {
+      setError('默认结束时间必须晚于开始时间')
       return
     }
 
@@ -395,7 +399,9 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
 
           {/* 默认时间：小时 + 分钟分别选择，分钟按 5 分钟刻度 */}
           <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">默认时间</span>
+            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
+              <span className="text-rose-500 mr-0.5">*</span>默认时间
+            </span>
             <div className="flex items-center gap-2 flex-1">
               {/* 开始时间：时 : 分 */}
               <select
