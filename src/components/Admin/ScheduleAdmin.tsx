@@ -290,6 +290,7 @@ export function ScheduleAdmin({ students, courses, onBack, onToast, onRefreshStu
       <ScheduleEditor
         schedule={editingSchedule}
         students={students}
+        courses={courses}
         onClose={() => setEditingSchedule(null)}
         onUpdated={handleEditorUpdated}
       />

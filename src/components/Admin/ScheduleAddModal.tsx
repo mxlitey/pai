@@ -126,6 +126,14 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
       setError('请至少添加一个日期')
       return
     }
+    if (!startTime || !endTime) {
+      setError('请填写上课时间（开始与结束时间均为必填）')
+      return
+    }
+    if (startTime >= endTime) {
+      setError('结束时间必须晚于开始时间')
+      return
+    }
     if (selectedStudentIds.size === 0) {
       setError('请至少选择一名学员')
       return
@@ -288,7 +296,9 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
 
           {/* 时间 */}
           <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">时间</span>
+            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
+              <span className="text-rose-500 mr-0.5">*</span>时间
+            </span>
             <div className="flex items-center gap-2 flex-1">
               <input
                 type="time"

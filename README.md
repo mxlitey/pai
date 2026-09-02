@@ -292,12 +292,86 @@ pai/
 │   ├── config.ts                    # 环境变量集中导出
 │   ├── App.tsx                      # 应用根组件
 │   └── main.tsx                     # React 入口
+├── mcp-server/                      # MCP Server（stdio，转发至后端 API）
+│   ├── index.js                     # 工具注册与请求转发
+│   ├── package.json
+│   └── test-e2e.mjs                 # 端到端测试
 ├── index.html
 ├── package.json
 ├── tailwind.config.js
 ├── tsconfig.json
 └── vite.config.ts
 ```
+
+***
+
+## 🤖 MCP Server
+
+项目内置一个 MCP（Model Context Protocol）服务器，位于 [`mcp-server/`](mcp-server/)，可将排课系统的全部管理能力暴露为 AI 工具，供 Trae、Claude Desktop、Cursor 等支持 MCP 的客户端调用。
+
+- **传输方式**：stdio
+- **架构**：MCP Client →（stdio）→ MCP Server →（HTTP）→ EdgeOne Pages Functions（`/api/*`）
+- **鉴权**：通过 `PAI_ADMIN_PASSWORD` 自动登录换取 token（24 小时有效），token 过期自动重登重试
+- **依赖**：Node ≥ 18，`@modelcontextprotocol/sdk` + `zod`
+
+### 环境变量
+
+| 变量名 | 必填 | 说明 |
+|--------|------|------|
+| `PAI_BASE_URL` | 否 | 后端地址，默认 `http://localhost:8788`，生产环境填 EdgeOne 域名（如 `https://pai-xxx.edgeone.site`） |
+| `PAI_ADMIN_PASSWORD` | 写操作必填 | 管理员登录密码，未配置时仅只读工具可用 |
+
+### 客户端配置
+
+通用 MCP 客户端配置（JSON）示例：
+
+```json
+{
+  "mcpServers": {
+    "pai-schedule": {
+      "command": "node",
+      "args": ["/path/to/pai/mcp-server/index.js"],
+      "env": {
+        "PAI_BASE_URL": "https://pai-xxx.edgeone.site",
+        "PAI_ADMIN_PASSWORD": "你的管理员密码"
+      }
+    }
+  }
+}
+```
+
+> 提示：首次使用前需安装依赖：`cd mcp-server && npm install`。Windows 路径建议使用正斜杠 `/` 或双反斜杠 `\\`。
+
+### 可用工具（16 个）
+
+| 工具 | 说明 |
+|------|------|
+| `list_students` | 查询学员列表（支持关键字搜索） |
+| `get_schedules` | 按学员 ID / 姓名 + 日期范围查询排课 |
+| `search_schedules` | 跨学员搜索排课（日期 + 课程 + 学员任一组合） |
+| `list_courses` | 获取全部课程（含默认时段） |
+| `get_announcement` | 读取公告内容 |
+| `add_schedule` | 新增单条排课（缺省时间自动套用课程默认时段） |
+| `batch_add_schedules` | 批量新增排课（日期×学员笛卡尔积） |
+| `update_schedule` | 修改排课（含跨月/跨学员迁移） |
+| `delete_schedule` | 删除单条排课 |
+| `add_student` | 新增学员 |
+| `update_student` | 更新学员 |
+| `delete_student` | 删除学员及其所有排课 |
+| `add_course` | 新增课程 |
+| `update_course` | 更新课程 |
+| `delete_course` | 删除课程及关联排课 |
+| `save_announcement` | 保存公告（Markdown，最大 5000 字） |
+
+### 本地测试
+
+```bash
+cd mcp-server
+npm install
+npm test    # 运行端到端测试（需后端可达）
+```
+
+项目还配套了一个排课助手 Skill（见 [`.trae/skills/schedule-assistant/SKILL.md`](.trae/skills/schedule-assistant/SKILL.md)），在 Trae 中配合上述 MCP 工具可实现自然语言查课、排课、调课与批量导入签到表等操作。
 
 ***
 

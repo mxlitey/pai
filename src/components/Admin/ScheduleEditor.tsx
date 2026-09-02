@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import type { Schedule, Student } from '@/types'
+import type { Course, Schedule, Student } from '@/types'
 import { updateSchedule, deleteSchedule } from '@/api/admin'
 import { cn } from '@/utils/cn'
 
 interface ScheduleEditorProps {
   schedule: Schedule | null
   students: Student[]
+  courses: Course[]
   onClose: () => void
   onUpdated: () => void
 }
@@ -29,6 +30,7 @@ function createForm(schedule: Schedule | null): Schedule {
 export function ScheduleEditor({
   schedule,
   students,
+  courses,
   onClose,
   onUpdated,
 }: ScheduleEditorProps) {
@@ -60,6 +62,18 @@ export function ScheduleEditor({
       if (field === 'studentId') {
         const student = students.find((s) => s.id === value)
         next.studentName = student?.name || ''
+      }
+      // 课程名称匹配到已有课程时，带出课程关联信息与默认时间段
+      if (field === 'courseName') {
+        const course = courses.find((c) => c.name === value.trim())
+        if (course) {
+          next.courseId = course.id
+          next.courseName = course.name
+          if (course.color) next.color = course.color
+          // 课程配置了默认时间则带出；未配置则保留现值
+          if (course.defaultStartTime) next.startTime = course.defaultStartTime
+          if (course.defaultEndTime) next.endTime = course.defaultEndTime
+        }
       }
       return next
     })
@@ -185,18 +199,28 @@ export function ScheduleEditor({
             />
           </div>
 
-          {/* 课程名称 */}
+          {/* 课程名称（带课程建议，选中后自动带出时间段） */}
           <div className="flex items-start gap-4">
             <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
               <span className="text-rose-500 mr-0.5">*</span>课程名称
             </span>
             <input
               type="text"
+              list="schedule-editor-courses"
               value={form.courseName}
               onChange={(e) => handleChange('courseName', e.target.value)}
               className={inputClass}
               placeholder="如：数学提高班"
             />
+            <datalist id="schedule-editor-courses">
+              {courses.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.defaultStartTime && c.defaultEndTime
+                    ? `默认 ${c.defaultStartTime}-${c.defaultEndTime}`
+                    : '无默认时间'}
+                </option>
+              ))}
+            </datalist>
           </div>
 
           {/* 日期 */}
