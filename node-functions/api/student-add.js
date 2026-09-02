@@ -20,9 +20,6 @@ function validateStudent(s) {
   if (typeof s.name !== 'string' || s.name.length > 32) {
     throw new Error('name 需为 1-32 字符的字符串')
   }
-  if (s.grade && typeof s.grade !== 'string') {
-    throw new Error('grade 需为字符串')
-  }
 }
 
 export default async function onRequestPost(context) {
@@ -50,7 +47,6 @@ export default async function onRequestPost(context) {
     const finalStudent = {
       id: genStudentId(),
       name: student.name.trim(),
-      grade: student.grade ? student.grade.trim() : '',
     }
 
     const result = await addStudent(finalStudent)

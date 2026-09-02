@@ -359,11 +359,6 @@ export default function App() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-slate-800">{selectedStudent.name}</span>
-                  {selectedStudent.grade && (
-                    <span className="px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-500">
-                      {selectedStudent.grade}
-                    </span>
-                  )}
                 </div>
               </div>
             </div>
