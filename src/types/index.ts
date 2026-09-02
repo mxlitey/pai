@@ -3,9 +3,6 @@ export interface Student {
   id: string
   name: string
   grade?: string
-  // 课时（1 节排课 = 1 课时）
-  hours?: number // 总课时（购课总数）
-  remainingHours?: number // 剩余课时（点名到课时扣减，改缺勤回退）
 }
 
 // 课程信息
@@ -33,7 +30,6 @@ export interface Schedule {
   endTime: string // HH:mm
   note?: string
   color?: string // 从课程带过来的颜色标签 key
-  attended?: boolean // 出勤状态：true=到课，false=缺勤，undefined=未点名
 }
 
 // 日历视图模式
