@@ -5,7 +5,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 # 排课助手（Schedule Assistant）
 
-通过 `pai-schedule` MCP server 提供的 16 个工具管理排课日历系统。本 skill 定义标准工作流、字段规范与安全边界。
+通过 `pai-schedule` MCP server 提供的 18 个工具管理排课日历系统。本 skill 定义标准工作流、字段规范与安全边界。
 
 ## 可用工具一览
 
@@ -13,6 +13,10 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `list_students(q?)` — 搜索学员（id 或姓名，精确+模糊）
 - `get_schedules({studentId?|studentName?, startDate?, endDate?})` — 按学员查排课
 - `get_announcement()` — 读公告
+
+**本地文件解析（无鉴权，无需后端）**：
+- `parse_docx({filePath})` — 解析本地 docx，返回正文段落 + 全部表格文本
+- `parse_xlsx({filePath})` — 解析本地 xlsx，返回全部工作表文本（支持合并单元格、日期、数字）
 
 **鉴权读**：
 - `search_schedules({startDate?, endDate?, courseId?, studentId?})` — 跨学员搜索排课
@@ -93,6 +97,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 ## 文件导入（xlsx/docx 签到表）
 
-- 解析 docx 用 PowerShell + .NET Zip API 或脚本提取表格；**解析结果写 UTF-8 文件**（如 `test-files/docx-parsed.txt`），不要直接输出控制台（中文会乱码）
+- 解析文件**优先用 MCP 工具**：`parse_docx({filePath})` / `parse_xlsx({filePath})`，传文件绝对路径，直接返回 UTF-8 文本，不要自己写 PowerShell 脚本解析
+- 解析 docx 时注意：合并单元格的值只出现在首个单元格，后续行为空（如班型/时间只写在组内第一行）；"请假"标记在对应日期列
 - `test-files/` 目录已被 gitignore，测试文件放这里不会推送到远程
-- 导入签到表流程：解析表格 → `list_students` + `list_courses` 核对姓名与课程 → 逐条 `add_schedule`（串行）→ `search_schedules` 复核
+- 导入签到表流程：`parse_docx`/`parse_xlsx` 解析 → `list_students` + `list_courses` 核对姓名与课程（课程不存在时先向用户确认命名再 `add_course`）→ 请假日期不排课或按用户要求处理 → `batch_add_schedules` 按班型分批写入（同班型多学员可一次调用；不传时间则自动用课程默认时间）→ `search_schedules` 复核
