@@ -11,6 +11,7 @@ import {
   addCourse,
   updateCourse,
   deleteCourse,
+  searchSchedules,
   getToken,
   clearToken,
 } from '@/api/admin'
@@ -75,6 +76,10 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   const [checking, setChecking] = useState<boolean>(true)
   const [students, setStudents] = useState<Student[]>([])
   const [courses, setCourses] = useState<Course[]>([])
+  // 学员 → 有排课记录的课程列表（课程名去重，用于学员管理页徽章展示）
+  const [studentCourses, setStudentCourses] = useState<Map<string, { name: string; color?: string }[]>>(
+    new Map(),
+  )
 
   // 操作状态
   const [busy, setBusy] = useState(false)
@@ -134,6 +139,29 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     }
   }, [])
 
+  // 加载全量排课并构建 学员→课程 映射（课程名去重，保留颜色）
+  const loadStudentCourses = useCallback(async () => {
+    try {
+      const result = await searchSchedules({})
+      if (result.code !== 0) return
+      const map = new Map<string, { name: string; color?: string }[]>()
+      for (const sch of result.data.schedules) {
+        let list = map.get(sch.studentId)
+        if (!list) {
+          list = []
+          map.set(sch.studentId, list)
+        }
+        if (!list.some((c) => c.name === sch.courseName)) {
+          list.push({ name: sch.courseName, color: sch.color || undefined })
+        }
+      }
+      setStudentCourses(map)
+    } catch (e) {
+      // 加载失败不阻塞学员管理页，仅徽章缺省
+      console.error('加载学员课程失败:', e)
+    }
+  }, [])
+
   // 进入管理页时调用后端校验 token 有效性
   // 防止攻击者在 localStorage 写入伪造 token 绕过前端登录页
   useEffect(() => {
@@ -170,6 +198,11 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     loadStudents()
     loadCourses()
   }, [authed, loadStudents, loadCourses])
+
+  // 进入学员管理页时加载学员课程映射（排课可能在排课管理页发生变化，每次进入刷新）
+  useEffect(() => {
+    if (authed && activeSubPage === 'students') loadStudentCourses()
+  }, [authed, activeSubPage, loadStudentCourses])
 
   // 公告：进入公告管理页时加载当前内容
   const handleLoadAnnouncement = useCallback(async () => {
@@ -401,6 +434,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
       <>
         <StudentAdmin
           students={students}
+          studentCourses={studentCourses}
           busy={busy}
           onBack={() => goSubPage(null)}
           onDelete={handleDeleteStudent}
