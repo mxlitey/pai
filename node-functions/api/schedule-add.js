@@ -1,7 +1,7 @@
 // 新增排课 API
 // POST /api/schedule-add  body: { schedule: Schedule }
 // 用于后台少量新增排课，无需走完整的 JSON 导入流程
-import { addSchedule, getStudents, json } from '../_lib/store.js'
+import { addSchedule, getCourses, getStudents, json } from '../_lib/store.js'
 import { requireAuth } from '../_lib/auth.js'
 import { genScheduleId } from '../_lib/id.js'
 
@@ -60,13 +60,24 @@ export default async function onRequestPost(context) {
       )
     }
 
+    // 未传时间时，自动使用课程默认上下课时间
+    let { startTime, endTime } = schedule
+    if ((!startTime || !endTime) && schedule.courseId) {
+      const courses = await getCourses()
+      const course = courses.find((c) => c.id === schedule.courseId)
+      if (course) {
+        if (!startTime) startTime = course.defaultStartTime || ''
+        if (!endTime) endTime = course.defaultEndTime || ''
+      }
+    }
+
     // 自动补全 studentName；id 由服务端自动生成
     const finalSchedule = {
       ...schedule,
       id: genScheduleId(),
       studentName: schedule.studentName || students.find((s) => s.id === schedule.studentId)?.name || '',
-      startTime: schedule.startTime || '',
-      endTime: schedule.endTime || '',
+      startTime: startTime || '',
+      endTime: endTime || '',
       note: schedule.note || '',
     }
 

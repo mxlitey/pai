@@ -340,7 +340,15 @@ pai/
 }
 ```
 
-> 提示：首次使用前需安装依赖：`cd mcp-server && npm install`。Windows 路径建议使用正斜杠 `/` 或双反斜杠 `\\`。
+以豆包「自定义连接器」（stdio 类型）为例，各字段填写：
+
+| 字段 | 填写内容 |
+|------|---------|
+| 命令（command） | `node` |
+| 参数（args） | `/path/to/pai/mcp-server/index.js` |
+| 环境变量 | `PAI_BASE_URL` = 后端域名（如 `https://pai-xxx.edgeone.site`）<br>`PAI_ADMIN_PASSWORD` = 管理员密码（只读测试可不填） |
+
+> 提示：首次使用前需安装依赖：`cd mcp-server && npm install`。路径用正斜杠 `/` 或双反斜杠 `\\`，避免 JSON 转义问题。仅配置 `PAI_BASE_URL` 不配置密码时，只有只读工具可用，可先以此测试连通性。
 
 ### 可用工具（16 个）
 

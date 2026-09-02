@@ -3,7 +3,7 @@
 // body: { courseId, courseName, color, dates: string[], startTime, endTime, note, studentIds: [] }
 // 为每个 (date, studentId) 组合生成一条排课记录，一次性写入
 // dates 为多日期数组，支持一次性排多天的课
-import { batchAddSchedules, getStudents, json } from '../_lib/store.js'
+import { batchAddSchedules, getCourses, getStudents, json } from '../_lib/store.js'
 import { requireAuth } from '../_lib/auth.js'
 import { genScheduleId } from '../_lib/id.js'
 
@@ -68,6 +68,17 @@ export default async function onRequestPost(context) {
         { code: 1, message: `以下 studentId 不存在: ${invalidIds.join(', ')}`, data: null },
         400,
       )
+    }
+
+    // 未传时间时，自动使用课程默认上下课时间
+    let { startTime, endTime } = body
+    if ((!startTime || !endTime) && courseId) {
+      const courses = await getCourses()
+      const course = courses.find((c) => c.id === courseId)
+      if (course) {
+        if (!startTime) startTime = course.defaultStartTime || ''
+        if (!endTime) endTime = course.defaultEndTime || ''
+      }
     }
 
     // 笛卡尔积：dates × studentIds，为每个组合生成一条排课
