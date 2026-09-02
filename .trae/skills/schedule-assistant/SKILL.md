@@ -5,7 +5,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 # 排课助手（Schedule Assistant）
 
-通过 `pai-schedule` MCP server 提供的 18 个工具管理排课日历系统。本 skill 定义标准工作流、字段规范与安全边界。
+通过 `pai-schedule` MCP server 提供的 19 个工具管理排课日历系统。本 skill 定义标准工作流、字段规范与安全边界。
 
 ## 可用工具一览
 
@@ -18,11 +18,11 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `parse_docx({filePath})` — 解析本地 docx，返回正文段落 + 全部表格文本
 - `parse_xlsx({filePath})` — 解析本地 xlsx，返回全部工作表文本（支持合并单元格、日期、数字）
 
-**本地脚本（通过 Shell 执行，依赖后端鉴权）**：
-- `cd mcp-server && node build-schedule-page.mjs [YYYY-MM] [选项]`（在项目根目录执行）— 排课总览页生成器，从后端实时拉数据生成 HTML 看板
-  - 月份缺省为当前月；`--makeup=日期[,日期...]` 标记补课日；`--out=文件名` 指定输出；`--title=标题` 覆盖主标题
+**本地脚本（通过 MCP 调用，依赖后端鉴权）**：
+- `build_schedule_page({month?, makeup?, out?, title?})` — 排课总览看板生成器，从后端实时拉数据生成 HTML 看板（仅限 MCP 工具调用，无命令行入口）
+  - `month` 缺省为当前月；`makeup` 为逗号分隔的补课日期；`out`/`title` 可覆盖输出文件名与主标题
   - 自动统计：排课条数/训练日期/学员/班型；请假自动识别（同班型有课但该学员缺席 → ✕）
-  - 输出 HTML 文件到当前工作目录，生成后告知用户文件路径
+  - HTML 输出到当前工作目录，生成后告知用户文件路径
 
 **鉴权读**：
 - `search_schedules({startDate?, endDate?, courseId?, studentId?})` — 跨学员搜索排课
@@ -65,7 +65,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 4. `batch_add_schedules({courseId, courseName, color, dates, studentIds, startTime?, endTime?})` — 时间缺省时用课程默认时间
 5. 向用户报告 `{created, skipped, errors}`；skipped/errors 非零时逐条解释
 6. `search_schedules({startDate, endDate})` 复核结果并展示
-7. **批量排课完成后执行看板生成脚本**（见第 5 节），把生成的 HTML 文件路径告知用户
+7. **批量排课完成后调用 `build_schedule_page` 生成看板**（见第 5 节），把生成的 HTML 文件路径告知用户
 
 ### 3. 调课（update）
 用户说"把张伟周二的课挪到周五 15:00"：
@@ -80,10 +80,10 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 ### 5. 生成排课看板（HTML 总览页）
 触发时机：**批量排课完成后**；或用户要求"看某月排课/看板/总览/导出排课表"时。
-1. 执行 `cd mcp-server && node build-schedule-page.mjs [YYYY-MM]`（在项目根目录执行；用户说"这个月/8月"等时换算为 YYYY-MM）
-2. 用户提到补课日期时加 `--makeup=日期,日期`；用户指定输出名/标题时加 `--out=` / `--title=`
-3. 脚本会输出统计摘要（排课条数/日期/学员/班型/请假人次），如实转述
-4. 把生成的 HTML 文件路径告知用户，可直接用浏览器打开或打印
+1. 调用 `build_schedule_page({month})`（用户说"这个月/8月"等时换算为 yyyy-MM 传入）
+2. 用户提到补课日期时加 `makeup`；用户指定输出名/标题时加 `out` / `title`
+3. 工具返回统计摘要（排课条数/日期/学员/班型/请假人次），如实转述
+4. HTML 文件生成在工作目录，把完整文件路径告知用户，可直接用浏览器打开或打印
 
 ## 安全边界（强制）
 

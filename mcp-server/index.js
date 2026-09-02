@@ -11,6 +11,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
+import { renderSchedulePage } from './build-schedule-page.mjs'
 
 const BASE_URL = (process.env.PAI_BASE_URL || 'http://localhost:8788').replace(/\/+$/, '')
 const ADMIN_PASSWORD = process.env.PAI_ADMIN_PASSWORD || ''
@@ -460,6 +461,48 @@ server.registerTool(
       return textResult(parseLocalFile(filePath, parseXlsx, '.xlsx'))
     } catch (e) {
       return textResult(`解析失败: ${e?.message || String(e)}`)
+    }
+  },
+)
+
+// 生成排课总览看板：复用本进程的 apiRequest 取数（鉴权与重试逻辑一致），
+// 渲染逻辑在 build-schedule-page.mjs 的 renderSchedulePage（HTML 输出到 mcp-server 目录）
+server.registerTool(
+  'build_schedule_page',
+  {
+    title: '生成排课总览看板（HTML）',
+    description: '从后端实时拉取指定月份数据，生成排课总览 HTML 页面：每日安排卡片 + 考勤矩阵（● 到课 / ✕ 请假自动识别 / – 无课），含排课条数、训练日期、学员、班型统计。输出文件写入 mcp-server 目录，返回统计摘要与文件路径。需要配置 PAI_ADMIN_PASSWORD。',
+    inputSchema: {
+      month: monthSchema.optional().describe('月份 yyyy-MM，缺省为当前月'),
+      makeup: z.string().regex(/^(\d{4}-\d{2}-\d{2})(,\d{4}-\d{2}-\d{2})*$/, '逗号分隔的 yyyy-MM-dd 日期列表').optional().describe('标记为「补课」的日期，逗号分隔，如 2026-08-13,2026-08-28'),
+      out: z.string().optional().describe('输出文件名（缺省 艺术体操{M}月排课表.html）'),
+      title: z.string().optional().describe('覆盖页面主标题'),
+    },
+  },
+  async ({ month: monthArg, makeup, out, title }) => {
+    try {
+      const month = monthArg || (() => {
+        const now = new Date()
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      })()
+      const [year, mon] = month.split('-').map(Number)
+      const lastDay = new Date(year, mon, 0).getDate()
+      const schedulesResult = toText(await apiRequest(
+        `/api/schedules-search?startDate=${month}-01&endDate=${month}-${String(lastDay).padStart(2, '0')}`,
+      ))
+      const schedules = JSON.parse(schedulesResult).schedules || []
+      if (!schedules.length) {
+        return textResult(`${month} 没有任何排课记录，未生成页面。`)
+      }
+      const courses = JSON.parse(toText(await apiRequest('/api/courses'))).courses || []
+      const { file, summary } = renderSchedulePage({
+        schedules, courses, month,
+        makeup: makeup ? makeup.split(',').filter(Boolean) : [],
+        outFile: out, titleOverride: title,
+      })
+      return textResult(`${summary}\n文件路径: ${file}`)
+    } catch (e) {
+      return textResult(`生成失败: ${e?.message || String(e)}`)
     }
   },
 )
