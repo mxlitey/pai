@@ -400,6 +400,70 @@ server.registerTool(
   },
 )
 
+// ========== 本地文件解析（docx / xlsx 签到表）==========
+import { parseDocx } from './parse-docx.mjs'
+import { parseXlsx } from './parse-xlsx.mjs'
+import { existsSync } from 'node:fs'
+import { resolve as resolvePath } from 'node:path'
+
+const PARSE_OUTPUT_LIMIT = 40000 // 返回内容上限（字符），超出截断
+
+function parseLocalFile(filePath, parseFn, ext) {
+  const abs = resolvePath(filePath)
+  if (!existsSync(abs)) {
+    throw new Error(`文件不存在: ${abs}`)
+  }
+  if (!abs.toLowerCase().endsWith(ext)) {
+    throw new Error(`仅支持 ${ext} 文件，当前为: ${abs}`)
+  }
+  let text
+  try {
+    text = parseFn(abs)
+  } catch (e) {
+    throw new Error(`解析失败（请确认是有效的 ${ext} 文件）: ${e?.message || String(e)}`)
+  }
+  if (text.length > PARSE_OUTPUT_LIMIT) {
+    text = text.slice(0, PARSE_OUTPUT_LIMIT) + `\n...（内容过长，已截断，共 ${text.length} 字符）`
+  }
+  return text
+}
+
+server.registerTool(
+  'parse_docx',
+  {
+    title: '解析 docx 文件（本地）',
+    description: '解析本地 docx 文件，提取正文段落与全部表格（单元格用 | 分隔）。适用于签到表、课程表等简单表格文档。返回 UTF-8 文本。',
+    inputSchema: {
+      filePath: z.string().describe('docx 文件绝对路径'),
+    },
+  },
+  async ({ filePath }) => {
+    try {
+      return textResult(parseLocalFile(filePath, parseDocx, '.docx'))
+    } catch (e) {
+      return textResult(`解析失败: ${e?.message || String(e)}`)
+    }
+  },
+)
+
+server.registerTool(
+  'parse_xlsx',
+  {
+    title: '解析 xlsx 文件（本地）',
+    description: '解析本地 xlsx 文件，提取全部工作表为文本表格（单元格用 | 分隔）。支持多工作表、合并单元格、日期与数字格式。返回 UTF-8 文本。',
+    inputSchema: {
+      filePath: z.string().describe('xlsx 文件绝对路径'),
+    },
+  },
+  async ({ filePath }) => {
+    try {
+      return textResult(parseLocalFile(filePath, parseXlsx, '.xlsx'))
+    } catch (e) {
+      return textResult(`解析失败: ${e?.message || String(e)}`)
+    }
+  },
+)
+
 // ========== 启动 ==========
 async function main() {
   console.error(`[pai-mcp] 启动：BASE_URL=${BASE_URL}，密码${ADMIN_PASSWORD ? '已配置' : '未配置（仅只读工具可用）'}`)

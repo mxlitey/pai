@@ -294,8 +294,9 @@ pai/
 │   └── main.tsx                     # React 入口
 ├── mcp-server/                      # MCP Server（stdio，转发至后端 API）
 │   ├── index.js                     # 工具注册与请求转发
-│   ├── package.json
-│   └── test-e2e.mjs                 # 端到端测试
+│   ├── parse-docx.mjs               # docx 解析器（签到表）
+│   ├── parse-xlsx.mjs               # xlsx 解析器（签到表）
+│   └── package.json
 ├── index.html
 ├── package.json
 ├── tailwind.config.js
@@ -371,12 +372,12 @@ pai/
 | `delete_course` | 删除课程及关联排课 |
 | `save_announcement` | 保存公告（Markdown，最大 5000 字） |
 
-### 本地测试
+### 本地运行
 
 ```bash
 cd mcp-server
 npm install
-npm test    # 运行端到端测试（需后端可达）
+npm start   # 启动 MCP Server（stdio）
 ```
 
 项目还配套了一个排课助手 Skill（见 [`.trae/skills/schedule-assistant/SKILL.md`](.trae/skills/schedule-assistant/SKILL.md)），在 Trae 中配合上述 MCP 工具可实现自然语言查课、排课、调课与批量导入签到表等操作。
