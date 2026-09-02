@@ -176,7 +176,6 @@ git push -u origin main
 |------|------|------|------|
 | `id` | string | 是 | 唯一标识，服务端自动生成 `stu_` 前缀，不可自定义 |
 | `name` | string | 是 | 姓名，1-32 字符 |
-| `grade` | string | 否 | 年级，如「高三」 |
 
 ### Course（课程）
 

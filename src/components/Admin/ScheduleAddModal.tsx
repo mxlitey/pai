@@ -12,16 +12,6 @@ interface ScheduleAddModalProps {
   onRefreshStudents: () => Promise<void>
 }
 
-// 从学员列表提取所有年级（去重 + 排序，空年级不展示）
-function collectGrades(students: Student[]): string[] {
-  const set = new Set<string>()
-  for (const s of students) {
-    const g = (s.grade || '').trim()
-    if (g) set.add(g)
-  }
-  return Array.from(set).sort()
-}
-
 export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefreshStudents }: ScheduleAddModalProps) {
   const [courseId, setCourseId] = useState('')
   // 多日期：在日历中多选后点击「添加」一次性提交
@@ -30,8 +20,6 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [note, setNote] = useState('')
-  // 年级过滤：空字符串表示"全部"
-  const [grade, setGrade] = useState('')
   const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set())
   const [search, setSearch] = useState('')
 
@@ -45,9 +33,6 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
     () => courses.find((c) => c.id === courseId) || null,
     [courses, courseId],
   )
-
-  // 所有年级列表
-  const grades = useMemo(() => collectGrades(students), [students])
 
   // 刷新学员列表（在其他页面新增学员后，点此拉取最新数据）
   const handleRefreshStudents = async () => {
@@ -74,19 +59,15 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId])
 
-  // 按年级 + 搜索词过滤学员
+  // 按搜索词过滤学员
   const filteredStudents = useMemo(() => {
-    let list = students
-    if (grade) {
-      list = list.filter((s) => (s.grade || '').trim() === grade)
-    }
     const q = search.trim().toLowerCase()
-    if (!q) return list
-    return list.filter((s) =>
+    if (!q) return students
+    return students.filter((s) =>
       s.name.toLowerCase().includes(q) ||
       s.id.toLowerCase().includes(q),
     )
-  }, [students, grade, search])
+  }, [students, search])
 
   // 全选/取消全选（仅对当前过滤结果）
   const allFilteredSelected =
@@ -325,24 +306,14 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
             </div>
           </div>
 
-          {/* 学员多选（先选年级） */}
+          {/* 学员多选 */}
           <div className="flex items-start gap-4">
             <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
               <span className="text-rose-500 mr-0.5">*</span>学员
             </span>
             <div className="flex-1 border border-slate-200 rounded-md overflow-hidden">
-              {/* 年级选择 + 搜索栏 + 全选 */}
+              {/* 搜索栏 + 全选 */}
               <div className="flex flex-wrap items-center gap-2 px-2 py-1.5 border-b border-slate-100 bg-slate-50">
-                <select
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value)}
-                  className="px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-brand-400 bg-white"
-                >
-                  <option value="">全部年级</option>
-                  {grades.map((g) => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
                 <input
                   type="text"
                   value={search}
@@ -409,7 +380,6 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
                         <div className="flex-1 min-w-0">
                           <span className="text-sm text-slate-700 font-medium">{s.name}</span>
                           <span className="text-xs text-slate-400 ml-2 font-mono">{s.id}</span>
-                          {s.grade && <span className="text-xs text-slate-400 ml-1">· {s.grade}</span>}
                         </div>
                       </label>
                     )

@@ -4,6 +4,8 @@ import { zhCN } from 'date-fns/locale'
 import type { Schedule, Student, ViewMode } from '@/types'
 import { getSchedules, getAnnouncement, searchStudents } from '@/api'
 import type { AnnouncementInfo } from '@/api'
+import { getCourseCardClass } from '@/utils/courseColors'
+import { cn } from '@/utils/cn'
 import {
   getViewTitle,
   navigateDate,
@@ -88,6 +90,8 @@ export default function App() {
     }
   })
   const [schedules, setSchedules] = useState<Schedule[]>([])
+  // 学员的全量排课（不限日期范围，用于推导课程徽章）
+  const [allSchedules, setAllSchedules] = useState<Schedule[]>([])
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [detailSchedule, setDetailSchedule] = useState<Schedule | null>(null)
@@ -185,6 +189,34 @@ export default function App() {
     if (view === 'week') return getWeekRange(currentDate)
     return { start: currentDate, end: currentDate }
   }, [view, currentDate])
+
+  // 学员切换时加载其全量排课（不传日期范围 = 全部），用于课程徽章
+  useEffect(() => {
+    if (!selectedStudent?.id) {
+      setAllSchedules([])
+      return
+    }
+    let active = true
+    getSchedules(selectedStudent.id)
+      .then((data) => {
+        if (active) setAllSchedules(data)
+      })
+      .catch(() => {
+        if (active) setAllSchedules([])
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedStudent?.id])
+
+  // 从全量排课推导课程徽章列表（课程名去重，保留颜色）
+  const courseBadges = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const sch of allSchedules) {
+      if (!map.has(sch.courseName)) map.set(sch.courseName, sch.color || '')
+    }
+    return Array.from(map.entries()).map(([name, color]) => ({ name, color }))
+  }, [allSchedules])
 
   // 加载排课数据（仅依赖学员 id 与日期范围，避免学员对象引用变化导致重渲染循环）
   const loadSchedules = useCallback(async () => {
@@ -359,12 +391,22 @@ export default function App() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-slate-800">{selectedStudent.name}</span>
-                  {selectedStudent.grade && (
-                    <span className="px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-500">
-                      {selectedStudent.grade}
-                    </span>
-                  )}
                 </div>
+                {courseBadges.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {courseBadges.map((c) => (
+                      <span
+                        key={c.name}
+                        className={cn(
+                          'px-2 py-0.5 text-xs rounded border whitespace-nowrap',
+                          getCourseCardClass(c.color, c.name),
+                        )}
+                      >
+                        {c.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             {stats && (

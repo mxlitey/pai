@@ -302,7 +302,7 @@ export function ScheduleEditor({
 // ===== 学员搜索选择器 =====
 // 解决两个问题：
 // 1. 学员数量多时下拉选择困难
-// 2. 重名学员无法区分（展示 id + 年级）
+// 2. 重名学员无法区分（展示 id）
 interface StudentSearchSelectProps {
   students: Student[]
   value: string
@@ -437,7 +437,6 @@ function StudentSearchSelect({ students, value, onChange }: StudentSearchSelectP
                     <div className="text-sm text-slate-700 font-medium truncate">{s.name}</div>
                     <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
                       <span className="font-mono">{s.id}</span>
-                      {s.grade && <span>· {s.grade}</span>}
                     </div>
                   </div>
                   {s.id === value && (

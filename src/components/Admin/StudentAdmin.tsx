@@ -1,9 +1,14 @@
 import { useMemo, useState } from 'react'
 import type { Student } from '@/types'
 import { cn } from '@/utils/cn'
+import { getCourseCardClass } from '@/utils/courseColors'
+
+// 学员有排课记录的课程（名称去重，带颜色）
+export type StudentCourseBadge = { name: string; color?: string }
 
 interface StudentAdminProps {
   students: Student[]
+  studentCourses: Map<string, StudentCourseBadge[]>
   busy: boolean
   onBack: () => void
   onDelete: (student: Student) => void
@@ -13,7 +18,7 @@ interface StudentAdminProps {
 
 const PAGE_SIZE = 10
 
-export function StudentAdmin({ students, busy, onBack, onDelete, onAdd, onUpdate }: StudentAdminProps) {
+export function StudentAdmin({ students, studentCourses, busy, onBack, onDelete, onAdd, onUpdate }: StudentAdminProps) {
   const [page, setPage] = useState(1)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Student | null>(null)
@@ -77,7 +82,7 @@ export function StudentAdmin({ students, busy, onBack, onDelete, onAdd, onUpdate
                   <tr className="border-b border-slate-200 text-slate-500 text-xs">
                     <th className="text-left py-2 px-2 font-medium">姓名</th>
                     <th className="text-left py-2 px-2 font-medium">ID</th>
-                    <th className="text-left py-2 px-2 font-medium">年级</th>
+                    <th className="text-left py-2 px-2 font-medium">课程</th>
                     <th className="text-right py-2 px-2 font-medium">操作</th>
                   </tr>
                 </thead>
@@ -89,8 +94,24 @@ export function StudentAdmin({ students, busy, onBack, onDelete, onAdd, onUpdate
                     >
                       <td className="py-2.5 px-2 font-medium text-slate-700">{s.name}</td>
                       <td className="py-2.5 px-2 text-slate-500 font-mono text-xs">{s.id}</td>
-                      <td className="py-2.5 px-2 text-slate-600">
-                        {s.grade || <span className="text-slate-300">—</span>}
+                      <td className="py-2.5 px-2">
+                        {(studentCourses.get(s.id) || []).length === 0 ? (
+                          <span className="text-slate-300">—</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {studentCourses.get(s.id)!.map((c) => (
+                              <span
+                                key={c.name}
+                                className={cn(
+                                  'px-1.5 py-0.5 text-xs rounded border whitespace-nowrap',
+                                  getCourseCardClass(c.color, c.name),
+                                )}
+                              >
+                                {c.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className="py-2.5 px-2 text-right whitespace-nowrap">
                         <button
@@ -219,7 +240,6 @@ function StudentEditModal({ student, onClose, onSubmit }: StudentEditModalProps)
     student || {
       id: '', // 新增时由后端自动生成
       name: '',
-      grade: '',
     },
   )
   const [saving, setSaving] = useState(false)
@@ -241,7 +261,6 @@ function StudentEditModal({ student, onClose, onSubmit }: StudentEditModalProps)
     const finalStudent: Student = {
       id: form.id.trim(),
       name: form.name.trim(),
-      grade: form.grade.trim(),
     }
 
     const ok = await onSubmit(finalStudent)
@@ -298,18 +317,6 @@ function StudentEditModal({ student, onClose, onSubmit }: StudentEditModalProps)
               className={inputClass}
               placeholder="如：张伟"
               autoFocus
-            />
-          </div>
-
-          {/* 年级 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">年级</span>
-            <input
-              type="text"
-              value={form.grade}
-              onChange={(e) => handleChange('grade', e.target.value)}
-              className={inputClass}
-              placeholder="如：高三"
             />
           </div>
 

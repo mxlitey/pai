@@ -139,9 +139,6 @@ export function SearchBar({ onSelectStudent, initialValue, onQueryChange }: Sear
             >
               <div className="flex items-center gap-2">
                 <span className="font-medium">{student.name}</span>
-                {student.grade && (
-                  <span className="text-xs text-slate-400">{student.grade}</span>
-                )}
               </div>
             </li>
           ))}
