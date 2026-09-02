@@ -227,13 +227,6 @@ interface CourseEditModalProps {
   onSubmit: (course: Course) => Promise<boolean>
 }
 
-// 生成简易唯一 id
-function genCourseId(): string {
-  const ts = Date.now().toString(36)
-  const rand = Math.random().toString(36).slice(2, 6)
-  return `c_${ts}${rand}`
-}
-
 // 默认时间：小时 + 分钟两个独立 select
 // 分钟以 5 分钟为单位：00, 05, 10, ..., 55
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))
@@ -266,7 +259,7 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
           defaultEndTime: alignTo5Min(course.defaultEndTime || ''),
         }
       : {
-          id: genCourseId(),
+          id: '', // 新增时由后端自动生成
           name: '',
           color: 'blue',
           defaultStartTime: '',
@@ -301,10 +294,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
     setError('')
     if (!form.name.trim()) {
       setError('课程名称不能为空')
-      return
-    }
-    if (!form.id.trim()) {
-      setError('课程 ID 不能为空')
       return
     }
     if (form.defaultStartTime && !/^\d{2}:\d{2}$/.test(form.defaultStartTime)) {
@@ -379,24 +368,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
               placeholder="如：数学提高班"
               autoFocus
             />
-          </div>
-
-          {/* ID */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">ID</span>
-            <div className="flex-1 space-y-1">
-              <input
-                type="text"
-                value={form.id}
-                onChange={(e) => handleChange('id', e.target.value)}
-                className={cn(inputClass, 'font-mono')}
-                disabled={isEdit}
-                placeholder="留空将自动生成"
-              />
-              <div className="text-xs text-slate-400">
-                {isEdit ? 'ID 不可修改' : '默认自动生成，可自定义；不可与已有 ID 重复'}
-              </div>
-            </div>
           </div>
 
           {/* 颜色标签 */}

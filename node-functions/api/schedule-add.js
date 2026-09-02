@@ -3,6 +3,7 @@
 // 用于后台少量新增排课，无需走完整的 JSON 导入流程
 import { addSchedule, getStudents, json } from '../_lib/store.js'
 import { requireAuth } from '../_lib/auth.js'
+import { genScheduleId } from '../_lib/id.js'
 
 async function readBody(request) {
   try {
@@ -12,10 +13,9 @@ async function readBody(request) {
   }
 }
 
-// 校验排课记录必填字段与格式
+// 校验排课记录必填字段与格式（id 由服务端生成，不校验）
 function validateSchedule(s) {
   if (!s) throw new Error('排课数据不能为空')
-  if (!s.id) throw new Error('缺少 id')
   if (!s.studentId) throw new Error('缺少 studentId')
   if (!s.courseName) throw new Error('缺少 courseName')
   if (!s.date) throw new Error('缺少 date')
@@ -60,9 +60,10 @@ export default async function onRequestPost(context) {
       )
     }
 
-    // 自动补全 studentName
+    // 自动补全 studentName；id 由服务端自动生成
     const finalSchedule = {
       ...schedule,
+      id: genScheduleId(),
       studentName: schedule.studentName || students.find((s) => s.id === schedule.studentId)?.name || '',
       startTime: schedule.startTime || '',
       endTime: schedule.endTime || '',

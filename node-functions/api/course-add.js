@@ -2,6 +2,7 @@
 // POST /api/course-add  body: { course }
 import { addCourse, json } from '../_lib/store.js'
 import { requireAuth } from '../_lib/auth.js'
+import { genCourseId } from '../_lib/id.js'
 
 async function readBody(request) {
   try {
@@ -11,13 +12,9 @@ async function readBody(request) {
   }
 }
 
-// 校验课程记录
+// 校验课程记录（id 由服务端生成，不校验）
 function validateCourse(c) {
   if (!c) throw new Error('课程数据不能为空')
-  if (!c.id) throw new Error('缺少 id')
-  if (typeof c.id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(c.id)) {
-    throw new Error('id 仅允许字母、数字、下划线、短横线，长度 1-64')
-  }
   if (!c.name) throw new Error('缺少 name')
   if (typeof c.name !== 'string' || c.name.length > 64) {
     throw new Error('name 需为 1-64 字符的字符串')
@@ -52,8 +49,9 @@ export default async function onRequestPost(context) {
   }
 
   try {
+    // id 由服务端自动生成
     const finalCourse = {
-      id: course.id.trim(),
+      id: genCourseId(),
       name: course.name.trim(),
       color: course.color || '',
       defaultStartTime: course.defaultStartTime || '',

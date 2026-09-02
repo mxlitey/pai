@@ -174,7 +174,7 @@ git push -u origin main
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `id` | string | 是 | 唯一标识，`/^[A-Za-z0-9_-]{1,64}$/`，前端默认生成 `stu_` 前缀 |
+| `id` | string | 是 | 唯一标识，服务端自动生成 `stu_` 前缀，不可自定义 |
 | `name` | string | 是 | 姓名，1-32 字符 |
 | `grade` | string | 否 | 年级，如「高三」 |
 
@@ -184,7 +184,7 @@ git push -u origin main
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `id` | string | 是 | 唯一标识，前端默认生成 `c_` 前缀 |
+| `id` | string | 是 | 唯一标识，服务端自动生成 `c_` 前缀，不可自定义 |
 | `name` | string | 是 | 课程名称，1-64 字符 |
 | `color` | string | 否 | 颜色标签 key：blue/green/purple/orange/rose/teal/amber/indigo/cyan/pink |
 | `defaultStartTime` | string | 否 | 默认开始时间，格式 `HH:mm` |
@@ -196,7 +196,7 @@ git push -u origin main
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `id` | string | 是 | 唯一标识，由时间戳 + 计数器 + 随机后缀生成 |
+| `id` | string | 是 | 唯一标识，服务端由时间戳 + 计数器 + 随机后缀生成，不可自定义 |
 | `studentId` | string | 是 | 关联学员 id，必须存在于学员表 |
 | `studentName` | string | 是 | 学员姓名（冗余存储，学员改名时级联更新） |
 | `courseId` | string | 否 | 关联课程 id（历史数据可能为空） |
