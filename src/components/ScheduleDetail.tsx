@@ -24,8 +24,6 @@ export function ScheduleDetail({ schedule, onClose }: ScheduleDetailProps) {
 
   const fields = [
     { label: '课程名称', value: schedule.courseName },
-    { label: '授课教师', value: schedule.teacher },
-    { label: '上课地点', value: schedule.location },
     { label: '日期', value: format(date, 'yyyy年M月d日 EEEE', { locale: zhCN }) },
     { label: '时间', value: `${schedule.startTime} - ${schedule.endTime}` },
     { label: '学员姓名', value: schedule.studentName },

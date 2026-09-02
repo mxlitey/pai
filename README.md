@@ -32,7 +32,7 @@
 
 ### 排课查询与详情
 - 🔎 **多方式查询**：按学员 ID、姓名 + 可选日期范围
-- 📋 **详情弹窗**：课程、教师、地点、日期、时间、学员完整展示
+- 📋 **详情弹窗**：课程、日期、时间、学员完整展示
 - 🔗 **分享链接**：为每位学员生成专属查看链接，家长访问直达日历页
 
 ### 后台管理
@@ -174,7 +174,7 @@ git push -u origin main
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `id` | string | 是 | 唯一标识，`/^[A-Za-z0-9_-]{1,64}$/`，前端默认生成 `stu_` 前缀 |
+| `id` | string | 是 | 唯一标识，服务端自动生成 `stu_` 前缀，不可自定义 |
 | `name` | string | 是 | 姓名，1-32 字符 |
 | `grade` | string | 否 | 年级，如「高三」 |
 
@@ -184,10 +184,8 @@ git push -u origin main
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `id` | string | 是 | 唯一标识，前端默认生成 `c_` 前缀 |
+| `id` | string | 是 | 唯一标识，服务端自动生成 `c_` 前缀，不可自定义 |
 | `name` | string | 是 | 课程名称，1-64 字符 |
-| `teacher` | string | 否 | 授课教师 |
-| `location` | string | 否 | 上课地点 |
 | `color` | string | 否 | 颜色标签 key：blue/green/purple/orange/rose/teal/amber/indigo/cyan/pink |
 | `defaultStartTime` | string | 否 | 默认开始时间，格式 `HH:mm` |
 | `defaultEndTime` | string | 否 | 默认结束时间，格式 `HH:mm` |
@@ -198,13 +196,11 @@ git push -u origin main
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `id` | string | 是 | 唯一标识，由时间戳 + 计数器 + 随机后缀生成 |
+| `id` | string | 是 | 唯一标识，服务端由时间戳 + 计数器 + 随机后缀生成，不可自定义 |
 | `studentId` | string | 是 | 关联学员 id，必须存在于学员表 |
 | `studentName` | string | 是 | 学员姓名（冗余存储，学员改名时级联更新） |
 | `courseId` | string | 否 | 关联课程 id（历史数据可能为空） |
 | `courseName` | string | 是 | 课程名称 |
-| `teacher` | string | 否 | 教师 |
-| `location` | string | 否 | 地点 |
 | `date` | string | 是 | 上课日期，格式 `yyyy-MM-dd` |
 | `startTime` | string | 否 | 开始时间，格式 `HH:mm` |
 | `endTime` | string | 否 | 结束时间，格式 `HH:mm` |

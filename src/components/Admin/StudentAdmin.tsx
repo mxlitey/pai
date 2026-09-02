@@ -213,18 +213,11 @@ interface StudentEditModalProps {
   onSubmit: (student: Student) => Promise<boolean>
 }
 
-// 生成简易唯一 id：时间戳+随机串，前端预生成，后端会校验重复
-function genStudentId(): string {
-  const ts = Date.now().toString(36)
-  const rand = Math.random().toString(36).slice(2, 6)
-  return `stu_${ts}${rand}`
-}
-
 function StudentEditModal({ student, onClose, onSubmit }: StudentEditModalProps) {
   const isEdit = !!student
   const [form, setForm] = useState<Student>(
     student || {
-      id: genStudentId(),
+      id: '', // 新增时由后端自动生成
       name: '',
       grade: '',
     },
@@ -241,10 +234,6 @@ function StudentEditModal({ student, onClose, onSubmit }: StudentEditModalProps)
     setError('')
     if (!form.name.trim()) {
       setError('学员姓名不能为空')
-      return
-    }
-    if (!form.id.trim()) {
-      setError('学员 ID 不能为空')
       return
     }
 
@@ -295,7 +284,6 @@ function StudentEditModal({ student, onClose, onSubmit }: StudentEditModalProps)
           {/* 必填说明 */}
           <div className="text-xs text-slate-400">
             <span className="text-rose-500">*</span> 为必填项
-            {isEdit && <span className="ml-2">ID 不可修改</span>}
           </div>
 
           {/* 姓名 */}
@@ -311,24 +299,6 @@ function StudentEditModal({ student, onClose, onSubmit }: StudentEditModalProps)
               placeholder="如：张伟"
               autoFocus
             />
-          </div>
-
-          {/* ID */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">ID</span>
-            <div className="flex-1 space-y-1">
-              <input
-                type="text"
-                value={form.id}
-                onChange={(e) => handleChange('id', e.target.value)}
-                className={cn(inputClass, 'font-mono')}
-                disabled={isEdit}
-                placeholder="留空将自动生成"
-              />
-              <div className="text-xs text-slate-400">
-                {isEdit ? 'ID 不可修改' : '默认自动生成，可自定义；不可与已有 ID 重复'}
-              </div>
-            </div>
           </div>
 
           {/* 年级 */}

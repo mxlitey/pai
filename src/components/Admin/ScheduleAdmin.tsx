@@ -241,8 +241,6 @@ export function ScheduleAdmin({ students, courses, onBack, onToast, onRefreshStu
                     <th className="text-left py-2 px-2 font-medium">课程</th>
                     <th className="text-left py-2 px-2 font-medium">日期</th>
                     <th className="text-left py-2 px-2 font-medium">时间</th>
-                    <th className="text-left py-2 px-2 font-medium">教师</th>
-                    <th className="text-left py-2 px-2 font-medium">地点</th>
                     <th className="text-right py-2 px-2 font-medium">操作</th>
                   </tr>
                 </thead>
@@ -263,8 +261,6 @@ export function ScheduleAdmin({ students, courses, onBack, onToast, onRefreshStu
                       <td className="py-2.5 px-2 text-slate-600">
                         {s.startTime}-{s.endTime}
                       </td>
-                      <td className="py-2.5 px-2 text-slate-600">{s.teacher}</td>
-                      <td className="py-2.5 px-2 text-slate-600">{s.location}</td>
                       <td className="py-2.5 px-2 text-right whitespace-nowrap">
                         <button
                           onClick={() => setEditingSchedule(s)}

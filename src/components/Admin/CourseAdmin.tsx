@@ -80,8 +80,6 @@ export function CourseAdmin({ courses, busy, onBack, onDelete, onAdd, onUpdate }
                   <tr className="border-b border-slate-200 text-slate-500 text-xs">
                     <th className="text-left py-2 px-2 font-medium">颜色</th>
                     <th className="text-left py-2 px-2 font-medium">课程名称</th>
-                    <th className="text-left py-2 px-2 font-medium">教师</th>
-                    <th className="text-left py-2 px-2 font-medium">地点</th>
                     <th className="text-left py-2 px-2 font-medium">默认时间</th>
                     <th className="text-left py-2 px-2 font-medium">ID</th>
                     <th className="text-right py-2 px-2 font-medium">操作</th>
@@ -102,12 +100,6 @@ export function CourseAdmin({ courses, busy, onBack, onDelete, onAdd, onUpdate }
                         />
                       </td>
                       <td className="py-2.5 px-2 font-medium text-slate-700">{c.name}</td>
-                      <td className="py-2.5 px-2 text-slate-600">
-                        {c.teacher || <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="py-2.5 px-2 text-slate-600">
-                        {c.location || <span className="text-slate-300">—</span>}
-                      </td>
                       <td className="py-2.5 px-2 text-slate-600 text-xs">
                         {c.defaultStartTime || c.defaultEndTime
                           ? `${c.defaultStartTime || '--'} - ${c.defaultEndTime || '--'}`
@@ -235,13 +227,6 @@ interface CourseEditModalProps {
   onSubmit: (course: Course) => Promise<boolean>
 }
 
-// 生成简易唯一 id
-function genCourseId(): string {
-  const ts = Date.now().toString(36)
-  const rand = Math.random().toString(36).slice(2, 6)
-  return `c_${ts}${rand}`
-}
-
 // 默认时间：小时 + 分钟两个独立 select
 // 分钟以 5 分钟为单位：00, 05, 10, ..., 55
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))
@@ -274,10 +259,8 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
           defaultEndTime: alignTo5Min(course.defaultEndTime || ''),
         }
       : {
-          id: genCourseId(),
+          id: '', // 新增时由后端自动生成
           name: '',
-          teacher: '',
-          location: '',
           color: 'blue',
           defaultStartTime: '',
           defaultEndTime: '',
@@ -313,10 +296,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
       setError('课程名称不能为空')
       return
     }
-    if (!form.id.trim()) {
-      setError('课程 ID 不能为空')
-      return
-    }
     if (form.defaultStartTime && !/^\d{2}:\d{2}$/.test(form.defaultStartTime)) {
       setError('默认开始时间需同时选择小时和分钟')
       return
@@ -330,8 +309,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
     const finalCourse: Course = {
       id: form.id.trim(),
       name: form.name.trim(),
-      teacher: form.teacher.trim(),
-      location: form.location.trim(),
       color: form.color || '',
       defaultStartTime: form.defaultStartTime || '',
       defaultEndTime: form.defaultEndTime || '',
@@ -393,24 +370,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
             />
           </div>
 
-          {/* ID */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">ID</span>
-            <div className="flex-1 space-y-1">
-              <input
-                type="text"
-                value={form.id}
-                onChange={(e) => handleChange('id', e.target.value)}
-                className={cn(inputClass, 'font-mono')}
-                disabled={isEdit}
-                placeholder="留空将自动生成"
-              />
-              <div className="text-xs text-slate-400">
-                {isEdit ? 'ID 不可修改' : '默认自动生成，可自定义；不可与已有 ID 重复'}
-              </div>
-            </div>
-          </div>
-
           {/* 颜色标签 */}
           <div className="flex items-start gap-4">
             <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">颜色标签</span>
@@ -432,30 +391,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* 教师 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">教师</span>
-            <input
-              type="text"
-              value={form.teacher}
-              onChange={(e) => handleChange('teacher', e.target.value)}
-              className={inputClass}
-              placeholder="如：张老师"
-            />
-          </div>
-
-          {/* 地点 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">地点</span>
-            <input
-              type="text"
-              value={form.location}
-              onChange={(e) => handleChange('location', e.target.value)}
-              className={inputClass}
-              placeholder="如：A教室201"
-            />
           </div>
 
           {/* 默认时间：小时 + 分钟分别选择，分钟按 5 分钟刻度 */}

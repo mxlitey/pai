@@ -251,8 +251,6 @@ export async function deleteCourse(
 export async function batchAddSchedules(body: {
   courseId: string
   courseName: string
-  teacher?: string
-  location?: string
   color?: string
   dates: string[] // 多日期，每个 yyyy-MM-dd
   startTime?: string

@@ -45,9 +45,6 @@ export function ScheduleCard({ schedule, compact = false, onClick }: ScheduleCar
           <div className="text-xs mt-1 opacity-80">
             {schedule.startTime} - {schedule.endTime}
           </div>
-          <div className="text-xs mt-0.5 opacity-70 truncate">
-            {schedule.teacher} · {schedule.location}
-          </div>
         </div>
       </div>
     </button>
