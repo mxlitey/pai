@@ -10,7 +10,7 @@
 
 排课系统是一套面向教育培训场景的学员排课查询与管理系统。前端为 React 单页应用，后端运行于腾讯云 EdgeOne Makers 边缘函数（Node Functions），数据存储于 EdgeOne Pages Blob 分布式对象存储，整套系统无需独立服务器，全球 3200+ 节点边缘加速。
 
-家长通过专属分享链接或学员姓名搜索即可查看排课日历（月/周/日三视图），管理员通过密码登录后台一站式管理学员、课程、排课、点名、公告与分享链接。排课按学员 + 月份分文件存储，跨月跨学员修改自动迁移；点名按课程→时间段两级分组，三态出勤自动联动课时扣减；公告支持 Markdown 渲染并按发布时间版本控制弹窗。
+家长通过专属分享链接或学员姓名搜索即可查看排课日历（月/周/日三视图），管理员通过密码登录后台一站式管理学员、课程、排课、公告与分享链接。排课按学员 + 月份分文件存储，跨月跨学员修改自动迁移；公告支持 Markdown 渲染并按发布时间版本控制弹窗。
 
 项目名称、登录密码等均通过环境变量注入，可在不修改代码的情况下完成定制。
 
@@ -32,19 +32,13 @@
 
 ### 排课查询与详情
 - 🔎 **多方式查询**：按学员 ID、姓名 + 可选日期范围
-- 📋 **详情弹窗**：课程、教师、地点、日期、时间、学员、出勤状态完整展示
+- 📋 **详情弹窗**：课程、教师、地点、日期、时间、学员完整展示
 - 🔗 **分享链接**：为每位学员生成专属查看链接，家长访问直达日历页
-
-### 课时统计
-- 🕒 **剩余课时**：学员信息栏实时展示「剩余 / 总」课时，用完红色高亮
-- ✅ **自动扣减**：点名到课自动 -1，改缺勤自动 +1 回退
-- 🎯 **差额联动**：编辑学员总课时按差额自动调整剩余课时
 
 ### 后台管理
 - 👥 **学员管理**：分页表格、新增 / 编辑 / 删除（二次确认）、ID 自动生成、姓名变更级联更新排课
 - 📚 **课程管理**：10 色颜色标签、默认时段记忆、删除同时清理关联排课
 - 🗂️ **排课管理**：双 tab（按学员 / 按日期+课程筛选）、单条新增、批量新增（日期×学员笛卡尔积）、跨月跨学员迁移
-- ✅ **点名管理**：按日期加载，课程→时间段两级分组，三态出勤，时间段级与全局批量操作
 - 📢 **公告管理**：编辑 / 预览双 tab，Markdown 实时渲染，字数统计
 - 🔗 **分享链接**：一键生成全部学员查看链接，单条 / 全量复制
 
@@ -165,8 +159,6 @@ git push -u origin main
 | POST | `/api/schedule-add-batch` | 是 | 批量新增排课（日期×学员笛卡尔积） |
 | PUT | `/api/schedule-update` | 是 | 修改排课（含跨月/跨学员迁移） |
 | DELETE | `/api/schedule-delete` | 是 | 删除单条排课 |
-| GET | `/api/attendance?date=` | 是 | 获取指定日期所有排课（含出勤状态） |
-| POST | `/api/attendance` | 是 | 批量设置点名，自动扣减/回退学员剩余课时 |
 | POST | `/api/auth` | 否 | 登录，返回 token |
 | GET | `/api/auth` | 是 | 校验 token 有效性 |
 
@@ -185,8 +177,6 @@ git push -u origin main
 | `id` | string | 是 | 唯一标识，`/^[A-Za-z0-9_-]{1,64}$/`，前端默认生成 `stu_` 前缀 |
 | `name` | string | 是 | 姓名，1-32 字符 |
 | `grade` | string | 否 | 年级，如「高三」 |
-| `hours` | number | 否 | 总课时（购课总数），非负整数 |
-| `remainingHours` | number | 否 | 剩余课时，非负整数；新增时 = hours；点名到课 -1，缺勤 +1 |
 
 ### Course（课程）
 
@@ -220,13 +210,6 @@ git push -u origin main
 | `endTime` | string | 否 | 结束时间，格式 `HH:mm` |
 | `note` | string | 否 | 备注 |
 | `color` | string | 否 | 颜色标签 key，从课程带过来 |
-| `attended` | boolean \| undefined | 否 | 出勤状态：`true`=到课，`false`=缺勤，`undefined`=未点名 |
-
-**出勤三态机制**：
-- `true`（到课）：点名时学员 `remainingHours` 自动 -1
-- `false`（缺勤）：点名时学员 `remainingHours` 自动 +1（回退）
-- `undefined`（未点名）：不扣减
-- 仅当新旧 `attended` 值不同时才扣减/回退，避免重复操作
 
 **按月分文件存储设计**：
 - 路径 `schedules/{studentId}/{yyyy-MM}.json`，单次读写仅涉及单月文件
@@ -251,7 +234,6 @@ git push -u origin main
 - 学员 id、排课 id 全局唯一，重复写入被拒绝
 - 排课 `studentId` 必须在学员表中存在（跨表关联校验）
 - 排课 `id` 不可修改（更新时 old.id 必须等于 new.id）
-- 学员 `hours` / `remainingHours` 需为非负整数
 - 公告 `content` 长度上限 5000 字
 - 跨学员搜索 `startDate` ≤ `endDate`
 
@@ -268,7 +250,6 @@ pai/
 │   │   └── store.js                 # Blob 存储封装、写锁、数据操作
 │   └── api/                         # 各业务接口
 │       ├── announcement.js          # 公告读取(公开)/保存(鉴权)
-│       ├── attendance.js            # 点名管理
 │       ├── auth.js                  # 登录/校验
 │       ├── courses.js               # 课程列表
 │       ├── course-add.js            # 新增课程
@@ -297,7 +278,6 @@ pai/
 │   │   │   ├── ScheduleAdmin.tsx    # 排课管理
 │   │   │   ├── ScheduleAddModal.tsx # 批量新增排课
 │   │   │   ├── ScheduleEditor.tsx   # 排课编辑弹窗
-│   │   │   ├── AttendanceAdmin.tsx  # 点名管理
 │   │   │   ├── AnnouncementAdmin.tsx# 公告管理
 │   │   │   └── ShareLinksAdmin.tsx  # 分享链接
 │   │   ├── Announcement/
