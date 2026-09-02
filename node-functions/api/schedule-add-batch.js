@@ -1,6 +1,6 @@
 // 批量新增排课 API
 // POST /api/schedule-add-batch
-// body: { courseId, courseName, teacher, location, color, dates: string[], startTime, endTime, note, studentIds: [] }
+// body: { courseId, courseName, color, dates: string[], startTime, endTime, note, studentIds: [] }
 // 为每个 (date, studentId) 组合生成一条排课记录，一次性写入
 // dates 为多日期数组，支持一次性排多天的课
 import { batchAddSchedules, getStudents, json } from '../_lib/store.js'
@@ -24,8 +24,6 @@ export default async function onRequestPost(context) {
   const {
     courseId,
     courseName,
-    teacher,
-    location,
     color,
     dates,
     startTime,
@@ -89,8 +87,6 @@ export default async function onRequestPost(context) {
           studentName: student.name,
           courseId,
           courseName,
-          teacher: teacher || '',
-          location: location || '',
           date,
           startTime: startTime || '',
           endTime: endTime || '',

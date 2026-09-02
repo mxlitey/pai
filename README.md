@@ -32,7 +32,7 @@
 
 ### 排课查询与详情
 - 🔎 **多方式查询**：按学员 ID、姓名 + 可选日期范围
-- 📋 **详情弹窗**：课程、教师、地点、日期、时间、学员完整展示
+- 📋 **详情弹窗**：课程、日期、时间、学员完整展示
 - 🔗 **分享链接**：为每位学员生成专属查看链接，家长访问直达日历页
 
 ### 后台管理
@@ -201,8 +201,6 @@ git push -u origin main
 | `studentName` | string | 是 | 学员姓名（冗余存储，学员改名时级联更新） |
 | `courseId` | string | 否 | 关联课程 id（历史数据可能为空） |
 | `courseName` | string | 是 | 课程名称 |
-| `teacher` | string | 否 | 教师 |
-| `location` | string | 否 | 地点 |
 | `date` | string | 是 | 上课日期，格式 `yyyy-MM-dd` |
 | `startTime` | string | 否 | 开始时间，格式 `HH:mm` |
 | `endTime` | string | 否 | 结束时间，格式 `HH:mm` |

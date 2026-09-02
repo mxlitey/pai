@@ -66,8 +66,6 @@ export default async function onRequestPost(context) {
       studentName: schedule.studentName || students.find((s) => s.id === schedule.studentId)?.name || '',
       startTime: schedule.startTime || '',
       endTime: schedule.endTime || '',
-      teacher: schedule.teacher || '',
-      location: schedule.location || '',
       note: schedule.note || '',
     }
 

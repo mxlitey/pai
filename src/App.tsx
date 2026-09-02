@@ -288,8 +288,7 @@ export default function App() {
     if (!selectedStudent) return null
     const count = schedules.length
     const courses = new Set(schedules.map((s) => s.courseName)).size
-    const teachers = new Set(schedules.map((s) => s.teacher)).size
-    return { count, courses, teachers }
+    return { count, courses }
   }, [selectedStudent, schedules])
 
   // 首页：类百度简洁首页
@@ -378,11 +377,6 @@ export default function App() {
                 <div className="text-center">
                   <div className="font-semibold text-brand-600">{stats.courses}</div>
                   <div className="text-xs text-slate-400">课程</div>
-                </div>
-                <div className="w-px h-8 bg-slate-100" />
-                <div className="text-center">
-                  <div className="font-semibold text-brand-600">{stats.teachers}</div>
-                  <div className="text-xs text-slate-400">教师</div>
                 </div>
               </div>
             )}

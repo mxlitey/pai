@@ -18,8 +18,6 @@ function createForm(schedule: Schedule | null): Schedule {
       studentId: '',
       studentName: '',
       courseName: '',
-      teacher: '',
-      location: '',
       date: '',
       startTime: '',
       endTime: '',
@@ -232,30 +230,6 @@ export function ScheduleEditor({
                 className={inputClass}
               />
             </div>
-          </div>
-
-          {/* 教师 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">教师</span>
-            <input
-              type="text"
-              value={form.teacher}
-              onChange={(e) => handleChange('teacher', e.target.value)}
-              className={inputClass}
-              placeholder="如：张老师"
-            />
-          </div>
-
-          {/* 地点 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">地点</span>
-            <input
-              type="text"
-              value={form.location}
-              onChange={(e) => handleChange('location', e.target.value)}
-              className={inputClass}
-              placeholder="如：A教室201"
-            />
           </div>
 
           {/* 备注 */}

@@ -21,8 +21,6 @@ export interface Schedule {
   studentName: string
   courseId?: string // 新增：关联课程 id（历史记录可能为空）
   courseName: string
-  teacher: string
-  location: string
   date: string // yyyy-MM-dd
   startTime: string // HH:mm
   endTime: string // HH:mm

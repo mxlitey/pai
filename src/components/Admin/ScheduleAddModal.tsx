@@ -29,8 +29,6 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
   const [calendarOpen, setCalendarOpen] = useState(false)
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
-  const [teacher, setTeacher] = useState('')
-  const [location, setLocation] = useState('')
   const [note, setNote] = useState('')
   // 年级过滤：空字符串表示"全部"
   const [grade, setGrade] = useState('')
@@ -157,8 +155,6 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
       const result = await batchAddSchedules({
         courseId,
         courseName: selectedCourse.name,
-        teacher,
-        location,
         color: selectedCourse.color || '',
         dates,
         startTime,
@@ -327,30 +323,6 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
                 className={inputClass}
               />
             </div>
-          </div>
-
-          {/* 教师 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">教师</span>
-            <input
-              type="text"
-              value={teacher}
-              onChange={(e) => setTeacher(e.target.value)}
-              className={inputClass}
-              placeholder="如：张老师"
-            />
-          </div>
-
-          {/* 地点 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">地点</span>
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className={inputClass}
-              placeholder="如：A教室201"
-            />
           </div>
 
           {/* 学员多选（先选年级） */}
