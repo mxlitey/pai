@@ -50,8 +50,6 @@ export default async function onRequestPut(context) {
     const finalCourse = {
       id: course.id.trim(),
       name: course.name.trim(),
-      teacher: course.teacher ? course.teacher.trim() : '',
-      location: course.location ? course.location.trim() : '',
       color: course.color || '',
       defaultStartTime: course.defaultStartTime || '',
       defaultEndTime: course.defaultEndTime || '',

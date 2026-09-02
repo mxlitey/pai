@@ -22,8 +22,6 @@ function validateCourse(c) {
   if (typeof c.name !== 'string' || c.name.length > 64) {
     throw new Error('name 需为 1-64 字符的字符串')
   }
-  if (c.teacher && typeof c.teacher !== 'string') throw new Error('teacher 需为字符串')
-  if (c.location && typeof c.location !== 'string') throw new Error('location 需为字符串')
   if (c.color && typeof c.color !== 'string') throw new Error('color 需为字符串')
   if (c.defaultStartTime && !/^\d{2}:\d{2}$/.test(c.defaultStartTime)) {
     throw new Error('defaultStartTime 格式应为 HH:mm')
@@ -57,8 +55,6 @@ export default async function onRequestPost(context) {
     const finalCourse = {
       id: course.id.trim(),
       name: course.name.trim(),
-      teacher: course.teacher ? course.teacher.trim() : '',
-      location: course.location ? course.location.trim() : '',
       color: course.color || '',
       defaultStartTime: course.defaultStartTime || '',
       defaultEndTime: course.defaultEndTime || '',

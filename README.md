@@ -186,8 +186,6 @@ git push -u origin main
 |------|------|------|------|
 | `id` | string | 是 | 唯一标识，前端默认生成 `c_` 前缀 |
 | `name` | string | 是 | 课程名称，1-64 字符 |
-| `teacher` | string | 否 | 授课教师 |
-| `location` | string | 否 | 上课地点 |
 | `color` | string | 否 | 颜色标签 key：blue/green/purple/orange/rose/teal/amber/indigo/cyan/pink |
 | `defaultStartTime` | string | 否 | 默认开始时间，格式 `HH:mm` |
 | `defaultEndTime` | string | 否 | 默认结束时间，格式 `HH:mm` |

@@ -64,11 +64,9 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
     }
   }
 
-  // 选课程时自动填充默认值，并清空已选学员（避免误操作）
+  // 选课程时自动填充默认时间，并清空已选学员（避免误操作）
   useEffect(() => {
     if (selectedCourse) {
-      setTeacher(selectedCourse.teacher || '')
-      setLocation(selectedCourse.location || '')
       setStartTime(selectedCourse.defaultStartTime || '')
       setEndTime(selectedCourse.defaultEndTime || '')
     }
@@ -241,7 +239,7 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
                   <option value="">请选择课程…</option>
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.name}{c.teacher ? ` · ${c.teacher}` : ''}
+                      {c.name}
                     </option>
                   ))}
                 </select>

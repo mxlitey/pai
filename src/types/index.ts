@@ -9,8 +9,6 @@ export interface Student {
 export interface Course {
   id: string
   name: string
-  teacher?: string
-  location?: string
   color?: string // 颜色标签 key，如 'blue'/'green'
   defaultStartTime?: string // HH:mm
   defaultEndTime?: string // HH:mm

@@ -80,8 +80,6 @@ export function CourseAdmin({ courses, busy, onBack, onDelete, onAdd, onUpdate }
                   <tr className="border-b border-slate-200 text-slate-500 text-xs">
                     <th className="text-left py-2 px-2 font-medium">颜色</th>
                     <th className="text-left py-2 px-2 font-medium">课程名称</th>
-                    <th className="text-left py-2 px-2 font-medium">教师</th>
-                    <th className="text-left py-2 px-2 font-medium">地点</th>
                     <th className="text-left py-2 px-2 font-medium">默认时间</th>
                     <th className="text-left py-2 px-2 font-medium">ID</th>
                     <th className="text-right py-2 px-2 font-medium">操作</th>
@@ -102,12 +100,6 @@ export function CourseAdmin({ courses, busy, onBack, onDelete, onAdd, onUpdate }
                         />
                       </td>
                       <td className="py-2.5 px-2 font-medium text-slate-700">{c.name}</td>
-                      <td className="py-2.5 px-2 text-slate-600">
-                        {c.teacher || <span className="text-slate-300">—</span>}
-                      </td>
-                      <td className="py-2.5 px-2 text-slate-600">
-                        {c.location || <span className="text-slate-300">—</span>}
-                      </td>
                       <td className="py-2.5 px-2 text-slate-600 text-xs">
                         {c.defaultStartTime || c.defaultEndTime
                           ? `${c.defaultStartTime || '--'} - ${c.defaultEndTime || '--'}`
@@ -276,8 +268,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
       : {
           id: genCourseId(),
           name: '',
-          teacher: '',
-          location: '',
           color: 'blue',
           defaultStartTime: '',
           defaultEndTime: '',
@@ -330,8 +320,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
     const finalCourse: Course = {
       id: form.id.trim(),
       name: form.name.trim(),
-      teacher: form.teacher.trim(),
-      location: form.location.trim(),
       color: form.color || '',
       defaultStartTime: form.defaultStartTime || '',
       defaultEndTime: form.defaultEndTime || '',
@@ -432,30 +420,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* 教师 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">教师</span>
-            <input
-              type="text"
-              value={form.teacher}
-              onChange={(e) => handleChange('teacher', e.target.value)}
-              className={inputClass}
-              placeholder="如：张老师"
-            />
-          </div>
-
-          {/* 地点 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">地点</span>
-            <input
-              type="text"
-              value={form.location}
-              onChange={(e) => handleChange('location', e.target.value)}
-              className={inputClass}
-              placeholder="如：A教室201"
-            />
           </div>
 
           {/* 默认时间：小时 + 分钟分别选择，分钟按 5 分钟刻度 */}
