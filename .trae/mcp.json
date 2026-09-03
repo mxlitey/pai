@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "pai-schedule": {
-      "url": "https://paike.flze.cn/api/mcp"
-    }
-  }
-}
