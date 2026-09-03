@@ -73,23 +73,30 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     }
   }
 
-  // 学员实际报名的全部课程（一个学员可报多门）
+  // 学员实际报名的全部课程（一个学员可报多门），按班型顺序排列
   const coursesOf = {}
   for (const st of studentList) {
-    coursesOf[st.name] = [...new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.courseName))]
+    coursesOf[st.name] = courseOrder.filter((cn) =>
+      schedules.some((s) => s.studentName === st.name && s.courseName === cn))
+  }
+
+  // 到课精确到（课程, 日期）：同一天一门到、一门缺不会误判为全到
+  const attendedOf = {}
+  for (const st of studentList) {
+    attendedOf[st.name] = new Set(
+      schedules.filter((s) => s.studentName === st.name).map((s) => `${s.courseName}|${s.date}`))
   }
 
   // 请假/应排按学员全部课程累计（同一天上两门课各计 1 次，不按日期去重）
   const leaveOf = {}
   const dueOf = {}
   for (const st of studentList) {
-    const own = new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.date))
     let leave = 0
     let due = 0
     for (const cn of coursesOf[st.name]) {
       for (const d of datesOfCourse[cn]) {
         due++
-        if (!own.has(d)) leave++
+        if (!attendedOf[st.name].has(`${cn}|${d}`)) leave++
       }
     }
     leaveOf[st.name] = leave
@@ -123,12 +130,17 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   }).join('\n')
 
   const matrixRows = studentList.map((st) => {
-    const own = new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.date))
-    const m = courseMeta[st.course]
+    // 每门课当天独立渲染标记：到课 ●（该课颜色）/ 缺席 ✕；同日多课并排显示如 ●● / ●✕
     const cells = dates.map((d) => {
-      if (own.has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:${m.stroke};background:${m.fill};font-size:14px;">●</td>`
-      if (coursesOf[st.name].some((cn) => datesOfCourse[cn].has(d))) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#A32D2D;font-weight:500;">✕</td>`
-      return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">·</td>`
+      const marks = coursesOf[st.name]
+        .filter((cn) => datesOfCourse[cn].has(d))
+        .map((cn) => attendedOf[st.name].has(`${cn}|${d}`)
+          ? `<span style="color:${courseMeta[cn].stroke};font-size:14px;">●</span>`
+          : `<span style="color:#A32D2D;font-weight:500;font-size:14px;">✕</span>`)
+      if (!marks.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">·</td>`
+      return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;">
+        <div style="display:flex;justify-content:center;gap:3px;white-space:nowrap;">${marks.join('')}</div>
+      </td>`
     }).join('')
     const total = dueOf[st.name]
     const leave = leaveOf[st.name]
@@ -203,6 +215,7 @@ ${cards}
 ${courseOrder.map((cn) => `<span><i class="dot" style="background:${courseMeta[cn].stroke}"></i>${cn}</span>`).join('\n')}
     <span style="color:#A32D2D;">✕ 请假</span>
     <span style="color:#A9A79F;">· 无课</span>
+    <span style="color:#A9A79F;">同日多课并排显示（如 ●● / ●✕）</span>
   </div>
   <table>
     <thead><tr><th>学员</th>${dates.map((d) => `<th>${mdFmt(d)}</th>`).join('')}<th>合计</th></tr></thead>
