@@ -117,9 +117,9 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     const total = datesOfCourse[st.course].size
     const leave = leaveOf[st.name].length
     return `<tr>
-    <td style="padding:7px 10px 7px 0;border-bottom:1px solid #F2F1EC;white-space:nowrap;">${st.name}</td>
+    <td style="padding:7px 10px 7px 14px;border-bottom:1px solid #F2F1EC;white-space:nowrap;">${st.name}</td>
     ${cells}
-    <td style="padding:7px 0 7px 10px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${own.size}/${total}${leave ? `　请假${leave}` : ''}</td>
+    <td style="padding:7px 14px 7px 10px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${own.size}/${total}${leave ? `　请假${leave}` : ''}</td>
   </tr>`
   }).join('\n')
 
@@ -152,9 +152,11 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   h2 { font-size: 15px; font-weight: 500; margin: 32px 0 14px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
   table { width: 100%; border-collapse: collapse; background: #fff;
-    border: 0.5px solid #E3E2DC; border-radius: 12px; padding: 8px 14px; font-size: 13px; }
-  th { font-weight: 500; font-size: 12px; color: #7A7973; padding: 8px 4px; text-align: center; white-space: nowrap; }
-  th:first-child { text-align: left; }
+    border: 0.5px solid #E3E2DC; border-radius: 12px; font-size: 13px; }
+  th { font-weight: 500; font-size: 12px; color: #7A7973; padding: 14px 4px 8px; text-align: center; white-space: nowrap; }
+  th:first-child { text-align: left; padding-left: 14px; }
+  th:last-child { padding-right: 14px; }
+  tbody tr:last-child td { border-bottom: none; padding-bottom: 12px; }
   .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 12px; font-size: 12px; color: #5F5E5A; }
   .legend span { display: flex; align-items: center; gap: 6px; }
   .dot { width: 10px; height: 10px; border-radius: 3px; }
@@ -186,7 +188,7 @@ ${courseOrder.map((cn) => `<span><i class="dot" style="background:${courseMeta[c
     <span style="color:#A9A79F;">· 无课</span>
   </div>
   <table>
-    <thead><tr><th style="text-align:left;padding-left:0;">学员</th>${dates.map((d) => `<th>${mdFmt(d)}</th>`).join('')}<th>合计</th></tr></thead>
+    <thead><tr><th>学员</th>${dates.map((d) => `<th>${mdFmt(d)}</th>`).join('')}<th>合计</th></tr></thead>
     <tbody>
 ${matrixRows}
     </tbody>
