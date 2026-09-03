@@ -19,16 +19,17 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   const [year, mon] = month.split('-').map(Number)
 
   // ---------- 颜色 ----------
+  // 色相拉开间距：coral=橙 / amber=金黄 / red=正红，green=草绿 / teal=青蓝，pink=洋红 / purple=紫
   const COLOR_HEX = {
-    blue: { fill: '#E6F1FB', stroke: '#185FA5', text: '#0C447C' },
-    green: { fill: '#EAF3DE', stroke: '#3B6D11', text: '#27500A' },
-    purple: { fill: '#EEEDFE', stroke: '#534AB7', text: '#3C3489' },
-    teal: { fill: '#E1F5EE', stroke: '#0F6E56', text: '#085041' },
-    coral: { fill: '#FAECE7', stroke: '#993C1D', text: '#712B13' },
-    pink: { fill: '#FBEAF0', stroke: '#993556', text: '#72243E' },
-    amber: { fill: '#FAEEDA', stroke: '#854F0B', text: '#633806' },
-    red: { fill: '#FCEBEB', stroke: '#A32D2D', text: '#791F1F' },
-    gray: { fill: '#F1EFE8', stroke: '#5F5E5A', text: '#444441' },
+    blue: { fill: '#E3F0FC', stroke: '#1D6FD6', text: '#0B4A8F' },
+    green: { fill: '#EAF6DA', stroke: '#6AA30D', text: '#426E06' },
+    purple: { fill: '#EDEBFD', stroke: '#6A5AE0', text: '#42379C' },
+    teal: { fill: '#DCF3F4', stroke: '#0FA0A8', text: '#07626A' },
+    coral: { fill: '#FDEADC', stroke: '#ED7417', text: '#93480D' },
+    pink: { fill: '#FBE3F1', stroke: '#DA3B93', text: '#8F2159' },
+    amber: { fill: '#FCF3CF', stroke: '#D8A007', text: '#7A5B03' },
+    red: { fill: '#FBEAEA', stroke: '#DB2B2B', text: '#7E1414' },
+    gray: { fill: '#F1EFE8', stroke: '#6B6A64', text: '#444441' },
   }
   const colorOf = (key) => COLOR_HEX[key] || COLOR_HEX.gray
 
@@ -109,8 +110,8 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     const own = new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.date))
     const m = courseMeta[st.course]
     const cells = dates.map((d) => {
-      if (own.has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:${m.text};background:${m.fill};font-size:14px;">●</td>`
-      if (datesOfCourse[st.course].has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#A32D2D;background:#FCEBEB;font-weight:500;">✕</td>`
+      if (own.has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:${m.stroke};background:${m.fill};font-size:14px;">●</td>`
+      if (datesOfCourse[st.course].has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#A32D2D;font-weight:500;">✕</td>`
       return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">·</td>`
     }).join('')
     const total = datesOfCourse[st.course].size
