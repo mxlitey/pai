@@ -5,7 +5,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 # 排课助手（Schedule Assistant）
 
-通过 `pai-schedule` MCP server 提供的 19 个工具管理排课日历系统。本 skill 定义标准工作流、字段规范与安全边界。
+通过云端 `pai-schedule` MCP server（`https://<域名>/api/mcp`，配置请求头 `X-Admin-Password`）提供的 16 个工具管理排课日历系统，配合本 skill 自带的本地脚本（签到表解析、看板生成）。本 skill 定义标准工作流、字段规范与安全边界。
 
 ## 可用工具一览
 
@@ -13,16 +13,6 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `list_students(q?)` — 搜索学员（id 或姓名，精确+模糊）
 - `get_schedules({studentId?|studentName?, startDate?, endDate?})` — 按学员查排课
 - `get_announcement()` — 读公告
-
-**本地文件解析（无鉴权，无需后端）**：
-- `parse_docx({filePath})` — 解析本地 docx，返回正文段落 + 全部表格文本
-- `parse_xlsx({filePath})` — 解析本地 xlsx，返回全部工作表文本（支持合并单元格、日期、数字）
-
-**本地脚本（通过 MCP 调用，依赖后端鉴权）**：
-- `build_schedule_page({month?, makeup?, out?, title?})` — 排课总览看板生成器，从后端实时拉数据生成 HTML 看板（仅限 MCP 工具调用，无命令行入口）
-  - `month` 缺省为当前月；`makeup` 为逗号分隔的补课日期；`out`/`title` 可覆盖输出文件名与主标题
-  - 自动统计：排课条数/训练日期/学员/班型；请假自动识别（同班型有课但该学员缺席 → ✕）
-  - HTML 输出到当前工作目录，生成后告知用户文件路径
 
 **鉴权读**：
 - `search_schedules({startDate?, endDate?, courseId?, studentId?})` — 跨学员搜索排课
@@ -36,6 +26,27 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `add_student({name})` / `update_student({id, name})` / `delete_student({confirm, studentId})`
 - `add_course({name, defaultStartTime, defaultEndTime, color?})` — 新增课程（默认上下课时间必填；id 后端自动生成）/ `update_course({id, name, defaultStartTime, defaultEndTime, color?})` / `delete_course({confirm, courseId})`
 - `save_announcement({content})` — 保存公告（Markdown，上限 5000 字，空串=清空）
+
+## 本地脚本（RunCommand 执行，位于本 skill 的 `scripts/` 目录）
+
+依赖本地文件系统，不属于云端 MCP，用终端命令执行。首次使用前需安装依赖：`cd .trae/skills/schedule-assistant/scripts && npm install`。
+
+**签到表解析（解析结果写入 <同目录>/docx-parsed.txt 或 xlsx-parsed.txt）**：
+```bash
+node .trae/skills/schedule-assistant/scripts/parse-docx.mjs <docx文件绝对路径>
+node .trae/skills/schedule-assistant/scripts/parse-xlsx.mjs <xlsx文件绝对路径>
+```
+- docx 返回正文段落 + 全部表格文本（单元格用 `|` 分隔）；xlsx 返回全部工作表（支持合并单元格、日期、数字）
+- 纯本地解析，不连后端，无需环境变量
+
+**排课总览看板生成（从后端实时拉数据，HTML 输出到当前工作目录）**：
+```bash
+PAI_BASE_URL=https://pai-xxx.edgeone.site PAI_ADMIN_PASSWORD=密码 \
+  node .trae/skills/schedule-assistant/scripts/build-schedule-page.mjs [--month 2026-09] [--makeup 2026-08-13,2026-08-28] [--out 文件名.html] [--title 标题]
+```
+- `--month` 缺省为当前月；`--makeup` 为逗号分隔的补课日期；`--out`/`--title` 可覆盖输出文件名与主标题
+- 自动统计：排课条数/训练日期/学员/班型；请假自动识别（同班型有课但该学员缺席 → ✕）
+- 生成后把输出中的完整文件路径告知用户
 
 ## 字段规范（严格遵守）
 
@@ -66,7 +77,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 5. `batch_add_schedules({courseId, dates, studentIds, startTime?, endTime?})` — 时间缺省时 MCP 层自动用课程默认时间；课程未配置默认时间时需显式传入
 6. **写后立即核对返回明细（强制，防张冠李戴）**：返回的 message 和 `data.students` 会列出实际写入的学员姓名。逐个比对 `data.students` 里的姓名与用户要求的学员名单，**不一致时立即停止并向用户报告错排详情**（用 `update_schedule` 或 `delete_schedule` 修正后再继续），禁止带错继续。同时向用户报告 `{created, skipped, errors}`；skipped/errors 非零时逐条解释（后端也有业务级去重兜底：同学员+同日+同courseId+同时段自动跳过，双保险）
 7. `search_schedules({startDate, endDate})` 复核结果并展示
-8. **批量排课完成后调用 `build_schedule_page` 生成看板**（见第 5 节），把生成的 HTML 文件路径告知用户
+8. **批量排课完成后执行看板脚本生成总览页**（见第 5 节），把生成的 HTML 文件路径告知用户
 
 ### 3. 调课（update）
 用户说"把张伟周二的课挪到周五 15:00"：
@@ -81,11 +92,11 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 ### 5. 生成排课看板（HTML 总览页）
 触发时机：**批量排课完成后**；或用户要求"看某月排课/看板/总览/导出排课表"时。
-1. 调用 `build_schedule_page({month})`（用户说"这个月/8月"等时换算为 yyyy-MM 传入）
-2. 用户提到补课日期时加 `makeup`；用户指定输出文件名时加 `out`
-3. **不要传 `title`**：默认标题与文件名均为「{yyyy}年{M}月排课看板」（如 2026年8月排课看板），不要加"艺术体操/集训"等业务前缀，仅当用户明确要求自定义标题时才覆盖
-4. 工具返回统计摘要（排课条数/日期/学员/班型/请假人次），如实转述
-5. HTML 文件生成在工作目录，把完整文件路径告知用户，可直接用浏览器打开或打印
+1. 通过 RunCommand 执行本地脚本（见「本地脚本」章节）：`PAI_BASE_URL=... PAI_ADMIN_PASSWORD=... node .trae/skills/schedule-assistant/scripts/build-schedule-page.mjs --month 2026-09`（用户说"这个月/8月"等时换算为 yyyy-MM 传入）
+2. 用户提到补课日期时加 `--makeup`；用户指定输出文件名时加 `--out`
+3. **不要传 `--title`**：默认标题与文件名均为「{yyyy}年{M}月排课看板」（如 2026年8月排课看板），不要加"艺术体操/集训"等业务前缀，仅当用户明确要求自定义标题时才覆盖
+4. 脚本输出统计摘要（排课条数/日期/学员/班型/请假人次），如实转述
+5. HTML 文件生成在当前工作目录，把完整文件路径告知用户，可直接用浏览器打开或打印
 
 ## 安全边界（强制）
 
@@ -101,9 +112,10 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 ## 错误处理
 
-- 工具报"未配置 PAI_ADMIN_PASSWORD" → 告知用户只读操作可用，写操作需在 MCP 配置中设置密码
-- 工具报"无法连接后端" → 检查 PAI_BASE_URL 与后端部署状态
-- 401/登录失败 → 提示检查 PAI_ADMIN_PASSWORD 是否正确（server 会自动重试，连续失败才需人工介入）
+- 工具报"该工具需要管理密码" → 告知用户只读操作可用，写操作需在 MCP 客户端配置的请求头中添加 `X-Admin-Password`（值同后台登录密码）
+- 工具报"管理密码错误" → 提示检查 MCP 配置中的 `X-Admin-Password` 是否正确
+- 无法连接 MCP 端点 → 检查云端部署状态与 URL 是否正确（`https://<域名>/api/mcp`）
+- 看板脚本报"缺少环境变量" → 提示设置 `PAI_BASE_URL` 与 `PAI_ADMIN_PASSWORD` 后重试；报"登录失败" → 检查密码
 - `batch_add_schedules` 返回 errors 时，逐条说明失败原因（如 id 碰撞），建议重试
 
 ## 历史数据规范（重要）
@@ -114,7 +126,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 ## 文件导入（xlsx/docx 签到表）
 
-- 解析文件**优先用 MCP 工具**：`parse_docx({filePath})` / `parse_xlsx({filePath})`，传文件绝对路径，直接返回 UTF-8 文本，不要自己写 PowerShell 脚本解析
+- 解析文件**优先用本 skill 自带的本地脚本**（见「本地脚本」章节）：`node .trae/skills/schedule-assistant/scripts/parse-docx.mjs <绝对路径>`（或 parse-xlsx.mjs），解析结果写入 `<同目录>/docx-parsed.txt` / `xlsx-parsed.txt`，用 Read 工具读取后再进入导入流程，不要自己写 PowerShell 脚本解析
 - 解析 docx 时注意：合并单元格的值只出现在首个单元格，后续行为空（如班型/时间只写在组内第一行）；"请假"标记在对应日期列
 - `test-files/` 目录已被 gitignore，测试文件放这里不会推送到远程
-- 导入签到表流程：`parse_docx`/`parse_xlsx` 解析 → `list_students` + `list_courses` 核对姓名与课程（课程不存在时先向用户确认命名再 `add_course`）→ 请假日期不排课或按用户要求处理 → **查重：`search_schedules` 比对已有排课，剔除已存在的 (学员, 日期) 组合** → `batch_add_schedules` 按班型分批写入（同班型多学员可一次调用；时间用课程默认时间或显式传入）→ `search_schedules` 复核
+- 导入签到表流程：本地脚本解析 → 读取解析结果 → `list_students` + `list_courses` 核对姓名与课程（课程不存在时先向用户确认命名再 `add_course`）→ 请假日期不排课或按用户要求处理 → **查重：`search_schedules` 比对已有排课，剔除已存在的 (学员, 日期) 组合** → `batch_add_schedules` 按班型分批写入（同班型多学员可一次调用；时间用课程默认时间或显式传入）→ `search_schedules` 复核

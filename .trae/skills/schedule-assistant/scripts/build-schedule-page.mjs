@@ -1,18 +1,18 @@
-﻿// 排课总览页生成器（渲染模块，数据由调用方传入）
+// 排课总览页生成器（本地脚本，跨平台）
 //
-// 导出 renderSchedulePage({schedules, courses, month, makeup?, outFile?, titleOverride?})，
-// 由 MCP server 的 index.js 取数后调用（复用其 apiRequest 鉴权）。
-// HTML 输出到本文件所在目录（mcp-server），返回 { file, summary }。
+// 渲染模块 renderSchedulePage({schedules, courses, month, makeup?, outFile?, titleOverride?})
+// CLI 用法：node build-schedule-page.mjs [--month 2026-09] [--makeup 2026-08-13,2026-08-28] [--out 文件名.html] [--title 标题]
+//   数据从后端实时拉取（EdgeOne Functions /api/*），HTML 输出到当前工作目录
+//
+// 环境变量：
+//   PAI_BASE_URL       后端地址（必填，如 https://pai-xxx.edgeone.site）
+//   PAI_ADMIN_PASSWORD 管理员登录密码（必填，用于换取 token）
 //
 // 请假判定：同班型内，该班型有课但该学员缺席的日期，自动标为「请假」，无需手工传入。
-
 import { writeFileSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 
-const MODULE_DIR = dirname(fileURLToPath(import.meta.url))
-
-// ========== 渲染（纯函数：不取数，数据由调用方传入） ==========
+// ========== 渲染（纯函数：不取数，数据由调用方传入）==========
 // 返回 { file: 输出文件绝对路径, summary: 统计摘要文本 }
 export function renderSchedulePage({ schedules, courses, month, makeup = [], outFile, titleOverride }) {
   const makeupSet = new Set(makeup)
@@ -227,7 +227,7 @@ ${matrixRows}
 </body>
 </html>`
 
-  const file = join(MODULE_DIR, fileName)
+  const file = join(process.cwd(), fileName)
   writeFileSync(file, html, 'utf8')
 
   const summaryLines = [
@@ -235,4 +235,88 @@ ${matrixRows}
   ]
   if (totalLeave) summaryLines.push(`请假 ${totalLeave} 人次（同班型有课但缺席，自动识别）`)
   return { file, summary: summaryLines.join('\n') }
+}
+
+// ========== CLI 入口：node build-schedule-page.mjs [--month ...] [--makeup ...] [--out ...] [--title ...] ==========
+const isMain = process.argv[1] && (await import('node:url')).fileURLToPath(import.meta.url) === process.argv[1]
+if (isMain) {
+  function arg(name) {
+    const i = process.argv.indexOf(`--${name}`)
+    return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : undefined
+  }
+
+  const BASE_URL = (process.env.PAI_BASE_URL || '').replace(/\/+$/, '')
+  const ADMIN_PASSWORD = process.env.PAI_ADMIN_PASSWORD || ''
+
+  if (!BASE_URL || !ADMIN_PASSWORD) {
+    console.error('缺少环境变量：需同时设置 PAI_BASE_URL（如 https://pai-xxx.edgeone.site）与 PAI_ADMIN_PASSWORD（管理员密码）')
+    process.exit(1)
+  }
+
+  const month = arg('month') || (() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })()
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    console.error(`--month 格式应为 yyyy-MM，当前为 ${month}`)
+    process.exit(1)
+  }
+
+  // 登录换取 token
+  let token
+  try {
+    const resp = await fetch(`${BASE_URL}/api/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: ADMIN_PASSWORD }),
+      signal: AbortSignal.timeout(15000),
+    })
+    const result = await resp.json().catch(() => null)
+    if (!result || result.code !== 0 || !result.data?.token) {
+      throw new Error(result?.message || `登录失败（HTTP ${resp.status}）`)
+    }
+    token = result.data.token
+  } catch (e) {
+    console.error(`登录失败: ${e?.message || String(e)}。请检查 PAI_BASE_URL 与 PAI_ADMIN_PASSWORD`)
+    process.exit(1)
+  }
+
+  // 拉取当月排课与课程列表
+  async function apiGet(path) {
+    const resp = await fetch(`${BASE_URL}${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(30000),
+    })
+    if (resp.status === 401) throw new Error('token 已过期，请重试')
+    const result = await resp.json().catch(() => null)
+    if (!result || result.code !== 0) {
+      throw new Error(result?.message || `请求 ${path} 失败（HTTP ${resp.status}）`)
+    }
+    return result.data
+  }
+
+  try {
+    const [year, mon] = month.split('-').map(Number)
+    const lastDay = new Date(year, mon, 0).getDate()
+    const end = `${month}-${String(lastDay).padStart(2, '0')}`
+    const { schedules = [] } = await apiGet(`/api/schedules-search?startDate=${month}-01&endDate=${end}`)
+    if (!schedules.length) {
+      console.log(`${month} 没有任何排课记录，未生成页面。`)
+      process.exit(0)
+    }
+    const { courses = [] } = await apiGet('/api/courses')
+    const makeup = (arg('makeup') || '').split(',').filter(Boolean)
+    const { file, summary } = renderSchedulePage({
+      schedules,
+      courses,
+      month,
+      makeup,
+      outFile: arg('out'),
+      titleOverride: arg('title'),
+    })
+    console.log(`${summary}\n文件路径: ${file}`)
+  } catch (e) {
+    console.error(`生成失败: ${e?.message || String(e)}`)
+    process.exit(1)
+  }
 }

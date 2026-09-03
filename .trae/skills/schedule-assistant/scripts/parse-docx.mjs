@@ -1,33 +1,22 @@
-// 通用 docx 解析器：解压 word/document.xml，提取段落与表格结构
+// 通用 docx 解析器：解压 word/document.xml，提取段落与表格结构（跨平台：fflate 纯 JS 解压）
 // 用法1（CLI）: node parse-docx.mjs <docx路径>   → 生成 <同目录>/docx-parsed.txt
 // 用法2（模块）: import { parseDocx } from './parse-docx.mjs'
-// 实现：复制为项目内 .zip（规避 Expand-Archive 后缀限制与沙箱临时目录限制）
-import { execSync } from 'node:child_process'
-import { readFileSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { unzipSync } from 'fflate'
 
 // 解析 docx，返回 UTF-8 文本（正文段落 + 全部表格）
 export function parseDocx(file) {
-  const workDir = join(dirname(file), '.docx-tmp')
-  const zipPath = join(workDir, 'doc.zip')
-  mkdirSync(workDir, { recursive: true })
-
-  try {
-    // 1. 复制为 .zip
-    execSync(`Copy-Item -Path "${file}" -Destination "${zipPath}" -Force`, { shell: 'powershell.exe' })
-    // 2. 解压到项目内目录
-    execSync(`Expand-Archive -Path "${zipPath}" -DestinationPath "${workDir}\\extract" -Force`, { shell: 'powershell.exe' })
-  } catch (e) {
-    rmSync(workDir, { recursive: true, force: true })
-    throw new Error('解压失败，请确认是有效的 docx 文件: ' + e.message)
-  }
-
+  // docx 本质是 zip：用 fflate 内存解压，直接读 word/document.xml，无临时文件、无系统命令
   let xml
   try {
-    xml = readFileSync(join(workDir, 'extract', 'word', 'document.xml'), 'utf-8')
-  } finally {
-    rmSync(workDir, { recursive: true, force: true })
+    const entries = unzipSync(new Uint8Array(readFileSync(file)))
+    const doc = entries['word/document.xml']
+    if (!doc) throw new Error('缺少 word/document.xml')
+    xml = new TextDecoder('utf-8').decode(doc)
+  } catch (e) {
+    throw new Error('解压失败，请确认是有效的 docx 文件: ' + (e?.message || String(e)))
   }
 
   // 提取表格：每个 <w:tbl> → 行 → 单元格文本

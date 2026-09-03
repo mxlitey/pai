@@ -1,4 +1,4 @@
-// 通用 xlsx 解析器：提取全部工作表为文本表格
+// 通用 xlsx 解析器：提取全部工作表为文本表格（跨平台）
 // 用法1（CLI）: node parse-xlsx.mjs <xlsx路径>   → 生成 <同目录>/xlsx-parsed.txt
 // 用法2（模块）: import { parseXlsx } from './parse-xlsx.mjs'
 // 基于 SheetJS（xlsx 包）：支持多工作表、合并单元格、日期、数字格式

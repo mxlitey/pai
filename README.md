@@ -294,13 +294,12 @@ pai/
 │   ├── config.ts                    # 环境变量集中导出
 │   ├── App.tsx                      # 应用根组件
 │   └── main.tsx                     # React 入口
-├── mcp-server/                      # 已归档：旧版本地 stdio MCP Server（云端版见 node-functions/api/mcp.js）
-│   ├── index.js                     # 工具注册与请求转发
-│   ├── parse-docx.mjs               # docx 解析器（签到表）
-│   ├── parse-xlsx.mjs               # xlsx 解析器（签到表）
-│   └── package.json
 ├── .trae/
 │   └── skills/schedule-assistant/   # Trae 排课助手 Skill（MCP 工作流规范）
+│       └── scripts/                 # 本地脚本（跨平台）
+│           ├── parse-docx.mjs       # docx 解析器（签到表）
+│           ├── parse-xlsx.mjs       # xlsx 解析器（签到表）
+│           └── build-schedule-page.mjs # 排课看板生成（拉后端数据）
 ├── index.html
 ├── package.json
 ├── tailwind.config.js
@@ -359,9 +358,15 @@ pai/
 | `delete_course` | 删除课程及关联排课（需显式 `confirm=true`） |
 | `save_announcement` | 保存公告（Markdown，最大 5000 字） |
 
-> 本地文件解析（`parse_docx` / `parse_xlsx`）与看板生成（`build_schedule_page`）依赖本地文件系统，不在云端 MCP 中提供。旧版本地 stdio MCP Server 已归档于 [`mcp-server/`](mcp-server/)（维护模式，不再更新），如需本地解析签到表可参考其中实现。
+> 本地文件解析（`parse_docx` / `parse_xlsx`）与看板生成（`build_schedule_page`）依赖本地文件系统，不在云端 MCP 中提供，已迁移至排课助手 Skill 的本地脚本（见下方 Skill 说明）。
 
-项目还配套了一个排课助手 Skill（见 [`.trae/skills/schedule-assistant/SKILL.md`](.trae/skills/schedule-assistant/SKILL.md)），在 Trae 中配合上述 MCP 工具可实现自然语言查课、排课、调课等操作。
+项目还配套了一个排课助手 Skill（见 [`.trae/skills/schedule-assistant/SKILL.md`](.trae/skills/schedule-assistant/SKILL.md)），在 Trae 中配合上述 MCP 工具可实现自然语言查课、排课、调课等操作。Skill 自带三个跨平台本地脚本（位于 [`.trae/skills/schedule-assistant/scripts/`](.trae/skills/schedule-assistant/scripts/)，首次使用前 `npm install`）：
+
+| 脚本 | 用途 | 用法 |
+|------|------|------|
+| `parse-docx.mjs` | 解析本地 docx 签到表（正文段落 + 表格） | `node parse-docx.mjs <docx路径>` |
+| `parse-xlsx.mjs` | 解析本地 xlsx 签到表（全部工作表） | `node parse-xlsx.mjs <xlsx路径>` |
+| `build-schedule-page.mjs` | 从后端拉数据生成月度排课看板 HTML | `PAI_BASE_URL=... PAI_ADMIN_PASSWORD=... node build-schedule-page.mjs [--month 2026-09]` |
 
 ***
 

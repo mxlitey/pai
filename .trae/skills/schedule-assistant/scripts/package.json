@@ -1,0 +1,19 @@
+{
+  "name": "schedule-assistant-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "排课助手 Skill 本地脚本（签到表解析 + 看板生成），跨平台（Windows/macOS/Linux）",
+  "scripts": {
+    "parse-docx": "node parse-docx.mjs",
+    "parse-xlsx": "node parse-xlsx.mjs",
+    "build-page": "node build-schedule-page.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "xlsx": "^0.18.5"
+  }
+}
