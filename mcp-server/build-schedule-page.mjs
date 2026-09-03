@@ -92,7 +92,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
       const m = courseMeta[cn]
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #EFEFEA;">
       <span style="flex:0 0 92px;font-size:12px;color:${m.text};font-variant-numeric:tabular-nums;padding-top:1px;">${items[0].startTime}–${items[0].endTime}</span>
-      <span style="flex:1;font-size:13px;line-height:1.6;">${items.map((s) => s.studentName).join('、')}</span>
+      <span style="flex:1;font-size:13px;line-height:1.7;">${items.map((s) => `<div style="white-space:nowrap;">${s.studentName}</div>`).join('')}</span>
       <span style="flex:0 0 auto;font-size:11px;color:${m.text};background:${m.fill};border:0.5px solid ${m.stroke};border-radius:5px;padding:1px 7px;">${cn}</span>
     </div>`
     }).join('')
