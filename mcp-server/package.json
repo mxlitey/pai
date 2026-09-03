@@ -1,7 +1,7 @@
 {
   "name": "pai-schedule-mcp-server",
   "version": "1.0.0",
-  "description": "排课日历系统 MCP Server（stdio，转发至 EdgeOne Functions API）",
+  "description": "（已归档）旧版本地 stdio MCP Server，云端版见 node-functions/api/mcp.js，随 EdgeOne 一起部署",
   "type": "module",
   "main": "index.js",
   "bin": {

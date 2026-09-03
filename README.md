@@ -161,6 +161,7 @@ git push -u origin main
 | DELETE | `/api/schedule-delete` | 是 | 删除单条排课 |
 | POST | `/api/auth` | 否 | 登录，返回 token |
 | GET | `/api/auth` | 是 | 校验 token 有效性 |
+| POST | `/api/mcp` | 按工具 | MCP 协议入口（Streamable HTTP 无状态；只读工具公开，写工具需 `X-Admin-Password` 请求头，详见下方 MCP Server 章节） |
 
 ***
 
@@ -258,8 +259,9 @@ pai/
 │       ├── schedules-search.js      # 跨学员搜索
 │       ├── schedule-add.js          # 新增单条排课
 │       ├── schedule-add-batch.js    # 批量新增排课
-│       ├── schedule-update.js       # 修改排课(含迁移)
-│       └── schedule-delete.js       # 删除排课
+│       ├── schedule-update.js      # 修改排课(含迁移)
+│       ├── schedule-delete.js      # 删除排课
+│       └── mcp.js                  # 云端 MCP Server(Streamable HTTP 无状态)
 ├── src/                             # 前端源码
 │   ├── api/
 │   │   ├── admin.ts                 # 后台 API 调用层(带 token)
@@ -292,7 +294,7 @@ pai/
 │   ├── config.ts                    # 环境变量集中导出
 │   ├── App.tsx                      # 应用根组件
 │   └── main.tsx                     # React 入口
-├── mcp-server/                      # MCP Server（stdio，转发至后端 API）
+├── mcp-server/                      # 已归档：旧版本地 stdio MCP Server（云端版见 node-functions/api/mcp.js）
 │   ├── index.js                     # 工具注册与请求转发
 │   ├── parse-docx.mjs               # docx 解析器（签到表）
 │   ├── parse-xlsx.mjs               # xlsx 解析器（签到表）
@@ -310,19 +312,12 @@ pai/
 
 ## 🤖 MCP Server
 
-项目内置一个 MCP（Model Context Protocol）服务器，位于 [`mcp-server/`](mcp-server/)，可将排课系统的全部管理能力暴露为 AI 工具，供 Trae、Claude Desktop、Cursor 等支持 MCP 的客户端调用。
+项目内置云端 MCP（Model Context Protocol）服务器（[`node-functions/api/mcp.js`](node-functions/api/mcp.js)），与后端同域部署、随 Git 推送自动上线，客户端无需本地安装任何依赖，只需一个 URL 即可接入，供 Trae、Claude Desktop、Cursor 等支持 MCP 的客户端调用。
 
-- **传输方式**：stdio
-- **架构**：MCP Client →（stdio）→ MCP Server →（HTTP）→ EdgeOne Pages Functions（`/api/*`）
-- **鉴权**：通过 `PAI_ADMIN_PASSWORD` 自动登录换取 token（24 小时有效），token 过期自动重登重试
-- **依赖**：Node ≥ 18，`@modelcontextprotocol/sdk` + `zod` + `xlsx`（签到表解析）
-
-### 环境变量
-
-| 变量名 | 必填 | 说明 |
-|--------|------|------|
-| `PAI_BASE_URL` | 否 | 后端地址，默认 `http://localhost:8788`，生产环境填 EdgeOne 域名（如 `https://pai-xxx.edgeone.site`） |
-| `PAI_ADMIN_PASSWORD` | 写操作必填 | 管理员登录密码，未配置时仅只读工具可用 |
+- **传输方式**：Streamable HTTP（无状态），入口 `https://<你的域名>/api/mcp`
+- **架构**：MCP 客户端 →（HTTPS + 密码请求头）→ 边缘函数 `mcp.js` →（函数内直调同项目 `/api/*` 处理逻辑）→ EdgeOne Blob 存储，业务校验与 REST API 完全同源
+- **鉴权**：复用环境变量 `ADMIN_PASSWORD`。只读工具（查学员 / 查排课 / 读公告）公开可用，与前端分享链接安全模型一致；其余工具需在客户端配置请求头 `X-Admin-Password`（值同后台登录密码）
+- **依赖**：客户端零依赖，服务端无新增依赖
 
 ### 客户端配置
 
@@ -332,52 +327,41 @@ pai/
 {
   "mcpServers": {
     "pai-schedule": {
-      "command": "node",
-      "args": ["/path/to/pai/mcp-server/index.js"],
-      "env": {
-        "PAI_BASE_URL": "https://pai-xxx.edgeone.site",
-        "PAI_ADMIN_PASSWORD": "你的管理员密码"
+      "url": "https://pai-xxx.edgeone.site/api/mcp",
+      "headers": {
+        "X-Admin-Password": "你的管理员密码"
       }
     }
   }
 }
 ```
 
-以豆包「自定义连接器」（stdio 类型）为例，各字段填写：
+也支持 `Authorization: Bearer <管理员密码>` 请求头。仅配置 URL 不配置密码时，只有只读工具可用，可先以此测试连通性；密码错误时写工具会返回明确报错，只读工具不受影响。
 
-| 字段 | 填写内容 |
-|------|---------|
-| 命令（command） | `node` |
-| 参数（args） | `/path/to/pai/mcp-server/index.js` |
-| 环境变量 | `PAI_BASE_URL` = 后端域名（如 `https://pai-xxx.edgeone.site`）<br>`PAI_ADMIN_PASSWORD` = 管理员密码（只读测试可不填） |
-
-> 提示：首次使用前需安装依赖：`cd mcp-server && npm install`。路径用正斜杠 `/` 或双反斜杠 `\\`，避免 JSON 转义问题。仅配置 `PAI_BASE_URL` 不配置密码时，只有只读工具可用，可先以此测试连通性。
-
-### 可用工具（19 个）
+### 可用工具（16 个）
 
 | 工具 | 说明 |
 |------|------|
 | `list_students` | 查询学员列表（支持关键字搜索） |
 | `get_schedules` | 按学员 ID / 姓名 + 日期范围查询排课 |
-| `search_schedules` | 跨学员搜索排课（日期 + 课程 + 学员任一组合） |
-| `list_courses` | 获取全部课程（含默认时段） |
 | `get_announcement` | 读取公告内容 |
-| `parse_docx` | 解析本地 docx 文件（正文段落 + 表格，用于签到表导入） |
-| `parse_xlsx` | 解析本地 xlsx 文件（全部工作表，支持合并单元格/日期） |
-| `build_schedule_page` | 生成月度排课总览 HTML 看板（每日安排 + 考勤矩阵，自动识别请假） |
+| `search_schedules` | 跨学员搜索排课（日期 + 课程 + 学员任一组合，需密码） |
+| `list_courses` | 获取全部课程（含默认时段，需密码） |
 | `add_schedule` | 新增单条排课（时间必填；同学员同日同时段同课程重复时拒绝写入） |
-| `batch_add_schedules` | 批量新增排课（日期×学员笛卡尔积，同学员同日同时段同课程自动去重跳过） |
+| `batch_add_schedules` | 批量新增排课（日期×学员笛卡尔积，同学员同日同时段同课程自动去重跳过；时间缺省取课程默认时段） |
 | `update_schedule` | 修改排课（含跨月/跨学员迁移） |
-| `delete_schedule` | 删除单条排课 |
+| `delete_schedule` | 删除单条排课（需显式 `confirm=true`） |
 | `add_student` | 新增学员 |
 | `update_student` | 更新学员 |
-| `delete_student` | 删除学员及其所有排课 |
+| `delete_student` | 删除学员及其所有排课（需显式 `confirm=true`） |
 | `add_course` | 新增课程 |
 | `update_course` | 更新课程 |
-| `delete_course` | 删除课程及关联排课 |
+| `delete_course` | 删除课程及关联排课（需显式 `confirm=true`） |
 | `save_announcement` | 保存公告（Markdown，最大 5000 字） |
 
-项目还配套了一个排课助手 Skill（见 [`.trae/skills/schedule-assistant/SKILL.md`](.trae/skills/schedule-assistant/SKILL.md)），在 Trae 中配合上述 MCP 工具可实现自然语言查课、排课、调课与批量导入签到表等操作。
+> 本地文件解析（`parse_docx` / `parse_xlsx`）与看板生成（`build_schedule_page`）依赖本地文件系统，不在云端 MCP 中提供。旧版本地 stdio MCP Server 已归档于 [`mcp-server/`](mcp-server/)（维护模式，不再更新），如需本地解析签到表可参考其中实现。
+
+项目还配套了一个排课助手 Skill（见 [`.trae/skills/schedule-assistant/SKILL.md`](.trae/skills/schedule-assistant/SKILL.md)），在 Trae 中配合上述 MCP 工具可实现自然语言查课、排课、调课等操作。
 
 ***
 
