@@ -295,14 +295,17 @@ server.registerTool(
   'add_student',
   {
     title: '新增学员',
-    description: '新增学员。id 需全局唯一（若已存在会拒绝并返回 exists=true）。',
+    description:
+      '新增学员。id 由后端自动生成（传入被忽略，新建后需 list_students 回读真实 id 再用于排课）。',
     inputSchema: {
-      id: studentIdSchema.describe('学员 ID（全局唯一）'),
       name: z.string().min(1).describe('学员姓名'),
     },
   },
-  async (student) => {
-    return textResult(toText(await apiRequest('/api/student-add', { method: 'POST', body: { student } })))
+  async ({ name }) => {
+    // 后端忽略客户端传入的 id，这里只传 name，避免调用方误以为 id 生效
+    return textResult(
+      toText(await apiRequest('/api/student-add', { method: 'POST', body: { student: { name } } })),
+    )
   },
 )
 
