@@ -92,8 +92,8 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
       const m = courseMeta[cn]
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #EFEFEA;">
       <span style="flex:0 0 92px;font-size:12px;color:${m.text};font-variant-numeric:tabular-nums;padding-top:1px;">${items[0].startTime}–${items[0].endTime}</span>
-      <span style="flex:1;font-size:13px;line-height:1.7;">${items.map((s) => `<div style="white-space:nowrap;">${s.studentName}</div>`).join('')}</span>
-      <span style="flex:0 0 auto;font-size:11px;color:${m.text};background:${m.fill};border:0.5px solid ${m.stroke};border-radius:5px;padding:1px 7px;">${cn}</span>
+      <span style="flex:1;min-width:0;font-size:13px;line-height:1.7;">${items.map((s) => `<div style="white-space:nowrap;">${s.studentName}</div>`).join('')}</span>
+      <span style="flex:0 0 auto;max-width:96px;font-size:11px;color:${m.text};background:${m.fill};border:0.5px solid ${m.stroke};border-radius:5px;padding:1px 7px;line-height:1.4;text-align:center;overflow-wrap:break-word;word-break:break-all;">${cn}</span>
     </div>`
     }).join('')
     return `<div style="background:#fff;border:0.5px solid #E3E2DC;border-radius:12px;padding:14px 16px;">
