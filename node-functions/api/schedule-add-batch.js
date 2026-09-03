@@ -115,10 +115,24 @@ export default async function onRequestPost(context) {
     }
 
     const result = await batchAddSchedules(schedules)
+    // 回显学员/课程明细，便于调用方核对"课排到了谁名下"，及早发现张冠李戴
+    const studentSummary = studentIds.map((sid) => ({
+      studentId: sid,
+      studentName: studentMap.get(sid)?.name || '',
+    }))
     return json({
       code: 0,
-      message: `已新增 ${result.created} 条排课` + (result.skipped > 0 ? `，跳过 ${result.skipped} 条重复` : ''),
-      data: { ...result, totalAttempts: schedules.length },
+      message:
+        `已新增 ${result.created} 条排课（课程「${finalCourseName}」${startTime}-${endTime}，学员：${studentSummary.map((s) => s.studentName).join('、')}）` +
+        (result.skipped > 0 ? `，跳过 ${result.skipped} 条重复` : '') +
+        '。请核对学员名单是否与预期一致。',
+      data: {
+        ...result,
+        totalAttempts: schedules.length,
+        course: { courseId, courseName: finalCourseName, startTime, endTime },
+        students: studentSummary,
+        dates,
+      },
     })
   } catch (e) {
     console.error('[schedule-add-batch] 批量新增异常:', e?.message || String(e))

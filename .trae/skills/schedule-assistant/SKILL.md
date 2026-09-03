@@ -59,12 +59,12 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 ### 2. 批量排课（最常用）
 用户说"给张伟和李娜排下周二、周四的数学课"：
-1. `list_students` 拿准确 studentId
+1. `list_students` 拿准确 studentId。**注意逐行核对 id 与姓名的对应关系**：列表中相邻两行最容易看串行（历史事故：把 A 学员的课挂到了 B 的 ID 上）；搜索命中多条时（返回 `ambiguous: true`）必须按 id 精确确认，不要凭姓名猜选
 2. `list_courses` 确认课程存在，取 courseId、courseName、color、默认时间
 3. 换算相对日期为绝对日期列表
 4. **排课前查重**：`search_schedules({startDate: 最早日期, endDate: 最晚日期, courseId})` 拉取该课程区间内已有排课，比对 (studentId, date) 组合，把已存在的组合从待提交列表中剔除并向用户说明"这些已排过，跳过"。导入签到表等批量场景尤其必须执行此步
 5. `batch_add_schedules({courseId, dates, studentIds, startTime?, endTime?})` — 时间缺省时 MCP 层自动用课程默认时间；课程未配置默认时间时需显式传入
-6. 向用户报告 `{created, skipped, errors}`；skipped/errors 非零时逐条解释（后端也有业务级去重兜底：同学员+同日+同courseId+同时段自动跳过，双保险）
+6. **写后立即核对返回明细（强制，防张冠李戴）**：返回的 message 和 `data.students` 会列出实际写入的学员姓名。逐个比对 `data.students` 里的姓名与用户要求的学员名单，**不一致时立即停止并向用户报告错排详情**（用 `update_schedule` 或 `delete_schedule` 修正后再继续），禁止带错继续。同时向用户报告 `{created, skipped, errors}`；skipped/errors 非零时逐条解释（后端也有业务级去重兜底：同学员+同日+同courseId+同时段自动跳过，双保险）
 7. `search_schedules({startDate, endDate})` 复核结果并展示
 8. **批量排课完成后调用 `build_schedule_page` 生成看板**（见第 5 节），把生成的 HTML 文件路径告知用户
 
