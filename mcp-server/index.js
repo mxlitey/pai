@@ -474,7 +474,7 @@ server.registerTool(
     inputSchema: {
       month: monthSchema.optional().describe('月份 yyyy-MM，缺省为当前月'),
       makeup: z.string().regex(/^(\d{4}-\d{2}-\d{2})(,\d{4}-\d{2}-\d{2})*$/, '逗号分隔的 yyyy-MM-dd 日期列表').optional().describe('标记为「补课」的日期，逗号分隔，如 2026-08-13,2026-08-28'),
-      out: z.string().optional().describe('输出文件名（缺省 艺术体操{M}月排课表.html）'),
+      out: z.string().optional().describe('输出文件名（缺省 {yyyy}年{M}月排课看板.html）'),
       title: z.string().optional().describe('覆盖页面主标题'),
     },
   },

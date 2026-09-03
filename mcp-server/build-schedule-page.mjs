@@ -19,16 +19,17 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   const [year, mon] = month.split('-').map(Number)
 
   // ---------- 颜色 ----------
+  // 色相拉开间距：coral=橙 / amber=金黄 / red=正红，green=草绿 / teal=青蓝，pink=洋红 / purple=紫
   const COLOR_HEX = {
-    blue: { fill: '#E6F1FB', stroke: '#185FA5', text: '#0C447C' },
-    green: { fill: '#EAF3DE', stroke: '#3B6D11', text: '#27500A' },
-    purple: { fill: '#EEEDFE', stroke: '#534AB7', text: '#3C3489' },
-    teal: { fill: '#E1F5EE', stroke: '#0F6E56', text: '#085041' },
-    coral: { fill: '#FAECE7', stroke: '#993C1D', text: '#712B13' },
-    pink: { fill: '#FBEAF0', stroke: '#993556', text: '#72243E' },
-    amber: { fill: '#FAEEDA', stroke: '#854F0B', text: '#633806' },
-    red: { fill: '#FCEBEB', stroke: '#A32D2D', text: '#791F1F' },
-    gray: { fill: '#F1EFE8', stroke: '#5F5E5A', text: '#444441' },
+    blue: { fill: '#E3F0FC', stroke: '#1D6FD6', text: '#0B4A8F' },
+    green: { fill: '#EAF6DA', stroke: '#6AA30D', text: '#426E06' },
+    purple: { fill: '#EDEBFD', stroke: '#6A5AE0', text: '#42379C' },
+    teal: { fill: '#DCF3F4', stroke: '#0FA0A8', text: '#07626A' },
+    coral: { fill: '#FDEADC', stroke: '#ED7417', text: '#93480D' },
+    pink: { fill: '#FBE3F1', stroke: '#DA3B93', text: '#8F2159' },
+    amber: { fill: '#FCF3CF', stroke: '#D8A007', text: '#7A5B03' },
+    red: { fill: '#FBEAEA', stroke: '#DB2B2B', text: '#7E1414' },
+    gray: { fill: '#F1EFE8', stroke: '#6B6A64', text: '#444441' },
   }
   const colorOf = (key) => COLOR_HEX[key] || COLOR_HEX.gray
 
@@ -72,14 +73,37 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     }
   }
 
-  // 请假 = 班型有课但该学员缺席
-  const leaveOf = {}
+  // 学员实际报名的全部课程（一个学员可报多门），按班型顺序排列
+  const coursesOf = {}
   for (const st of studentList) {
-    const own = new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.date))
-    leaveOf[st.name] = [...datesOfCourse[st.course]].filter((d) => !own.has(d)).sort()
+    coursesOf[st.name] = courseOrder.filter((cn) =>
+      schedules.some((s) => s.studentName === st.name && s.courseName === cn))
   }
 
-  const totalLeave = Object.values(leaveOf).reduce((n, v) => n + v.length, 0)
+  // 到课精确到（课程, 日期）：同一天一门到、一门缺不会误判为全到
+  const attendedOf = {}
+  for (const st of studentList) {
+    attendedOf[st.name] = new Set(
+      schedules.filter((s) => s.studentName === st.name).map((s) => `${s.courseName}|${s.date}`))
+  }
+
+  // 请假/应排按学员全部课程累计（同一天上两门课各计 1 次，不按日期去重）
+  const leaveOf = {}
+  const dueOf = {}
+  for (const st of studentList) {
+    let leave = 0
+    let due = 0
+    for (const cn of coursesOf[st.name]) {
+      for (const d of datesOfCourse[cn]) {
+        due++
+        if (!attendedOf[st.name].has(`${cn}|${d}`)) leave++
+      }
+    }
+    leaveOf[st.name] = leave
+    dueOf[st.name] = due
+  }
+
+  const totalLeave = Object.values(leaveOf).reduce((n, v) => n + v, 0)
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
@@ -92,8 +116,8 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
       const m = courseMeta[cn]
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #EFEFEA;">
       <span style="flex:0 0 92px;font-size:12px;color:${m.text};font-variant-numeric:tabular-nums;padding-top:1px;">${items[0].startTime}–${items[0].endTime}</span>
-      <span style="flex:1;font-size:13px;line-height:1.7;">${items.map((s) => `<div style="white-space:nowrap;">${s.studentName}</div>`).join('')}</span>
-      <span style="flex:0 0 auto;font-size:11px;color:${m.text};background:${m.fill};border:0.5px solid ${m.stroke};border-radius:5px;padding:1px 7px;">${cn}</span>
+      <span style="flex:1;min-width:0;font-size:13px;line-height:1.7;">${items.map((s) => `<div style="white-space:nowrap;">${s.studentName}</div>`).join('')}</span>
+      <span style="flex:0 0 auto;max-width:96px;font-size:11px;color:${m.text};background:${m.fill};border:0.5px solid ${m.stroke};border-radius:5px;padding:1px 7px;line-height:1.4;text-align:center;overflow-wrap:break-word;word-break:break-all;">${cn}</span>
     </div>`
     }).join('')
     return `<div style="background:#fff;border:0.5px solid #E3E2DC;border-radius:12px;padding:14px 16px;">
@@ -106,29 +130,35 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   }).join('\n')
 
   const matrixRows = studentList.map((st) => {
-    const own = new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.date))
-    const m = courseMeta[st.course]
+    // 每门课当天独立渲染标记：到课 ●（该课颜色）/ 缺席 ✕；同日多课并排显示如 ●● / ●✕
     const cells = dates.map((d) => {
-      if (own.has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:${m.text};">●</td>`
-      if (datesOfCourse[st.course].has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#D8B4A0;" title="请假">✕</td>`
-      return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#C9C7BF;">–</td>`
+      const marks = coursesOf[st.name]
+        .filter((cn) => datesOfCourse[cn].has(d))
+        .map((cn) => attendedOf[st.name].has(`${cn}|${d}`)
+          ? `<span style="color:${courseMeta[cn].stroke};font-size:14px;">●</span>`
+          : `<span style="color:#A32D2D;font-weight:500;font-size:14px;">✕</span>`)
+      if (!marks.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">·</td>`
+      return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;">
+        <div style="display:flex;justify-content:center;gap:3px;white-space:nowrap;">${marks.join('')}</div>
+      </td>`
     }).join('')
-    const total = datesOfCourse[st.course].size
-    const leave = leaveOf[st.name].length
+    const total = dueOf[st.name]
+    const leave = leaveOf[st.name]
+    const attended = total - leave
     return `<tr>
-    <td style="padding:7px 10px 7px 0;border-bottom:1px solid #F2F1EC;white-space:nowrap;">${st.name}</td>
+    <td style="padding:7px 10px 7px 14px;border-bottom:1px solid #F2F1EC;white-space:nowrap;">${st.name}</td>
     ${cells}
-    <td style="padding:7px 0 7px 10px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${own.size}/${total}${leave ? `　请假${leave}` : ''}</td>
+    <td style="padding:7px 14px 7px 10px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${attended}/${total}${leave ? `　请假${leave}` : ''}</td>
   </tr>`
   }).join('\n')
 
-  const title = titleOverride || `艺术体操 · ${year}年${mon}月`
+  const title = titleOverride || `${year}年${mon}月排课看板`
   const mdFmt = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}` }
   const subParts = [`共 ${dates.length} 次训练`]
   if (makeupSet.size) subParts.push(`${[...makeupSet].sort().map(mdFmt).join(' 与 ')} 为补课`)
   subParts.push(`生成于 ${todayStr}`)
   const subtitle = subParts.join(' · ')
-  const fileName = outFile || `艺术体操${mon}月排课表.html`
+  const fileName = outFile || `${year}年${mon}月排课看板.html`
 
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -151,9 +181,11 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   h2 { font-size: 15px; font-weight: 500; margin: 32px 0 14px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
   table { width: 100%; border-collapse: collapse; background: #fff;
-    border: 0.5px solid #E3E2DC; border-radius: 12px; padding: 8px 14px; font-size: 13px; }
-  th { font-weight: 500; font-size: 12px; color: #7A7973; padding: 8px 4px; text-align: center; white-space: nowrap; }
-  th:first-child { text-align: left; }
+    border: 0.5px solid #E3E2DC; border-radius: 12px; font-size: 13px; }
+  th { font-weight: 500; font-size: 12px; color: #7A7973; padding: 14px 4px 8px; text-align: center; white-space: nowrap; }
+  th:first-child { text-align: left; padding-left: 14px; }
+  th:last-child { padding-right: 14px; }
+  tbody tr:last-child td { border-bottom: none; padding-bottom: 12px; }
   .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 12px; font-size: 12px; color: #5F5E5A; }
   .legend span { display: flex; align-items: center; gap: 6px; }
   .dot { width: 10px; height: 10px; border-radius: 3px; }
@@ -181,10 +213,12 @@ ${cards}
   <h2>考勤矩阵</h2>
   <div class="legend">
 ${courseOrder.map((cn) => `<span><i class="dot" style="background:${courseMeta[cn].stroke}"></i>${cn}</span>`).join('\n')}
-    <span style="color:#A9A79F;">✕ 请假未排</span>
+    <span style="color:#A32D2D;">✕ 请假</span>
+    <span style="color:#A9A79F;">· 无课</span>
+    <span style="color:#A9A79F;">同日多课并排显示（如 ●● / ●✕）</span>
   </div>
   <table>
-    <thead><tr><th style="text-align:left;padding-left:0;">学员</th>${dates.map((d) => `<th>${mdFmt(d)}</th>`).join('')}<th>合计</th></tr></thead>
+    <thead><tr><th>学员</th>${dates.map((d) => `<th>${mdFmt(d)}</th>`).join('')}<th>合计</th></tr></thead>
     <tbody>
 ${matrixRows}
     </tbody>
