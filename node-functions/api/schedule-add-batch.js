@@ -1,6 +1,8 @@
 // 批量新增排课 API
 // POST /api/schedule-add-batch
-// body: { courseId, courseName, color, dates: string[], startTime, endTime, note, studentIds: [] }
+// body: { courseId, dates: string[], startTime, endTime, color?, note?, studentIds: [] }
+// courseName 由后端根据 courseId 自动补全（不采信传入值）
+// startTime / endTime 为必填项；color 缺省时取课程颜色
 // 为每个 (date, studentId) 组合生成一条排课记录，一次性写入
 // dates 为多日期数组，支持一次性排多天的课
 import { batchAddSchedules, getCourses, getStudents, json } from '../_lib/store.js'
@@ -36,9 +38,6 @@ export default async function onRequestPost(context) {
   if (!courseId) {
     return json({ code: 1, message: '缺少 courseId', data: null }, 400)
   }
-  if (!courseName) {
-    return json({ code: 1, message: '缺少 courseName', data: null }, 400)
-  }
   // dates 必须是非空字符串数组，每个需符合 yyyy-MM-dd
   if (!Array.isArray(dates) || dates.length === 0) {
     return json({ code: 1, message: '请至少选择一个日期', data: null }, 400)
@@ -48,10 +47,17 @@ export default async function onRequestPost(context) {
       return json({ code: 1, message: `日期格式应为 yyyy-MM-dd，当前为 "${d}"`, data: null }, 400)
     }
   }
-  if (startTime && !/^\d{2}:\d{2}$/.test(startTime)) {
+  // startTime / endTime 为必填项（格式校验后，取课程默认时间前先验空）
+  if (!startTime) {
+    return json({ code: 1, message: '缺少 startTime（开始时间为必填项）', data: null }, 400)
+  }
+  if (!endTime) {
+    return json({ code: 1, message: '缺少 endTime（结束时间为必填项）', data: null }, 400)
+  }
+  if (!/^\d{2}:\d{2}$/.test(startTime)) {
     return json({ code: 1, message: 'startTime 格式应为 HH:mm', data: null }, 400)
   }
-  if (endTime && !/^\d{2}:\d{2}$/.test(endTime)) {
+  if (!/^\d{2}:\d{2}$/.test(endTime)) {
     return json({ code: 1, message: 'endTime 格式应为 HH:mm', data: null }, 400)
   }
   if (!Array.isArray(studentIds) || studentIds.length === 0) {
@@ -59,6 +65,18 @@ export default async function onRequestPost(context) {
   }
 
   try {
+    // courseId 必须在课程表中存在；courseName 由后端根据 courseId 自动补全（不采信传入值）
+    const courses = await getCourses()
+    const course = courses.find((c) => c.id === courseId)
+    if (!course) {
+      return json(
+        { code: 1, message: `courseId="${courseId}" 在课程表中不存在`, data: null },
+        400,
+      )
+    }
+    const finalCourseName = course.name
+    const finalColor = color || course.color || ''
+
     // 校验学员是否存在，并构建 id->name 映射
     const students = await getStudents()
     const studentMap = new Map(students.map((s) => [s.id, s]))
@@ -68,17 +86,6 @@ export default async function onRequestPost(context) {
         { code: 1, message: `以下 studentId 不存在: ${invalidIds.join(', ')}`, data: null },
         400,
       )
-    }
-
-    // 未传时间时，自动使用课程默认上下课时间
-    let { startTime, endTime } = body
-    if ((!startTime || !endTime) && courseId) {
-      const courses = await getCourses()
-      const course = courses.find((c) => c.id === courseId)
-      if (course) {
-        if (!startTime) startTime = course.defaultStartTime || ''
-        if (!endTime) endTime = course.defaultEndTime || ''
-      }
     }
 
     // 笛卡尔积：dates × studentIds，为每个组合生成一条排课
@@ -97,12 +104,12 @@ export default async function onRequestPost(context) {
           studentId: sid,
           studentName: student.name,
           courseId,
-          courseName,
+          courseName: finalCourseName,
           date,
-          startTime: startTime || '',
-          endTime: endTime || '',
+          startTime,
+          endTime,
           note: note || '',
-          color: color || '',
+          color: finalColor,
         })
       }
     }

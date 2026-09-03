@@ -1,6 +1,7 @@
 // 新增排课 API
 // POST /api/schedule-add  body: { schedule: Schedule }
 // 用于后台少量新增排课，无需走完整的 JSON 导入流程
+// courseName 由后端根据 courseId 自动补全（不采信传入值）；startTime/endTime 必填
 import { addSchedule, getCourses, getStudents, json } from '../_lib/store.js'
 import { requireAuth } from '../_lib/auth.js'
 import { genScheduleId } from '../_lib/id.js'
@@ -17,15 +18,17 @@ async function readBody(request) {
 function validateSchedule(s) {
   if (!s) throw new Error('排课数据不能为空')
   if (!s.studentId) throw new Error('缺少 studentId')
-  if (!s.courseName) throw new Error('缺少 courseName')
+  if (!s.courseId) throw new Error('缺少 courseId（courseName 由后端自动补全）')
   if (!s.date) throw new Error('缺少 date')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s.date)) {
     throw new Error('date 格式应为 yyyy-MM-dd')
   }
-  if (s.startTime && !/^\d{2}:\d{2}$/.test(s.startTime)) {
+  if (!s.startTime) throw new Error('缺少 startTime（开始时间为必填项）')
+  if (!s.endTime) throw new Error('缺少 endTime（结束时间为必填项）')
+  if (!/^\d{2}:\d{2}$/.test(s.startTime)) {
     throw new Error('startTime 格式应为 HH:mm')
   }
-  if (s.endTime && !/^\d{2}:\d{2}$/.test(s.endTime)) {
+  if (!/^\d{2}:\d{2}$/.test(s.endTime)) {
     throw new Error('endTime 格式应为 HH:mm')
   }
 }
@@ -60,28 +63,39 @@ export default async function onRequestPost(context) {
       )
     }
 
-    // 未传时间时，自动使用课程默认上下课时间
-    let { startTime, endTime } = schedule
-    if ((!startTime || !endTime) && schedule.courseId) {
-      const courses = await getCourses()
-      const course = courses.find((c) => c.id === schedule.courseId)
-      if (course) {
-        if (!startTime) startTime = course.defaultStartTime || ''
-        if (!endTime) endTime = course.defaultEndTime || ''
-      }
+    // courseId 必须在课程表中存在；courseName 由后端根据 courseId 自动补全（不采信传入值）
+    const courses = await getCourses()
+    const course = courses.find((c) => c.id === schedule.courseId)
+    if (!course) {
+      return json(
+        { code: 1, message: `courseId="${schedule.courseId}" 在课程表中不存在`, data: null },
+        400,
+      )
     }
 
-    // 自动补全 studentName；id 由服务端自动生成
+    // 自动补全 studentName 与 courseName；id 由服务端自动生成
     const finalSchedule = {
       ...schedule,
       id: genScheduleId(),
       studentName: schedule.studentName || students.find((s) => s.id === schedule.studentId)?.name || '',
-      startTime: startTime || '',
-      endTime: endTime || '',
+      courseName: course.name,
+      color: schedule.color || course.color || '',
+      startTime: schedule.startTime,
+      endTime: schedule.endTime,
       note: schedule.note || '',
     }
 
     const result = await addSchedule(finalSchedule)
+    if (result.duplicate) {
+      return json(
+        {
+          code: 1,
+          message: `该学员 ${finalSchedule.date} ${finalSchedule.startTime}-${finalSchedule.endTime} 已有此课程的排课，未重复新增`,
+          data: { duplicate: true, existing: result.existing },
+        },
+        409,
+      )
+    }
     if (result.exists) {
       return json(
         { code: 1, message: `排课 id="${schedule.id}" 已存在，不可重复新增`, data: null },

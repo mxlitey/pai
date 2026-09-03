@@ -195,6 +195,7 @@ export async function deleteCourseWithSchedules(courseId) {
 
 // 批量新增排课（为多个学员同时排同一节课）
 // schedules: Schedule[]（每条已含唯一 id）
+// 业务级去重：同 学员+日期+courseId+时间段 已存在时跳过（计入 skipped 并记入 errors 明细）
 // 返回 { created, skipped, errors }
 export async function batchAddSchedules(schedules) {
   // 校验所有 studentId / date，防路径遍历
@@ -229,8 +230,28 @@ export async function batchAddSchedules(schedules) {
       const month = groupSchedules[0].date.slice(0, 7)
       const existing = await getSchedulesByMonth(studentId, month)
       const existingIds = new Set(existing.map((s) => s.id))
+      // 业务级去重：同 学员+日期+courseId+时间段 已存在则跳过。
+      // 学员维度已由分组保证，此处键含 courseId 与起止时间
+      const existingBizKeys = new Set(
+        existing.map((s) => `${s.date}|${s.courseId}|${s.startTime}|${s.endTime}`),
+      )
+      const seenBizKeys = new Set() // 同批次内防重（dates 数组可能含重复日期）
 
+      let groupCreated = 0
       for (const s of groupSchedules) {
+        const bizKey = `${s.date}|${s.courseId}|${s.startTime}|${s.endTime}`
+        if (existingBizKeys.has(bizKey) || seenBizKeys.has(bizKey)) {
+          errors.push({
+            studentId: s.studentId,
+            date: s.date,
+            courseId: s.courseId,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            reason: '重复排课：该学员当天此时段已有此课程',
+          })
+          skipped++
+          continue
+        }
         let id = s.id
         // 与已有存储 id 或批次内已用 id 碰撞时，重新生成直到全局唯一
         // 重试上限 100 次兜底（时间戳+计数器+随机后缀碰撞概率极低，理论上不会触发）
@@ -247,8 +268,13 @@ export async function batchAddSchedules(schedules) {
         existing.push({ ...s, id })
         existingIds.add(id)
         usedIds.add(id)
+        existingBizKeys.add(bizKey)
+        seenBizKeys.add(bizKey)
+        groupCreated++
         created++
       }
+
+      if (groupCreated === 0) continue // 组内全部被跳过，无需写回
 
       // 按日期+时间排序
       existing.sort((a, b) => {
@@ -537,8 +563,8 @@ export async function updateSchedule(oldSchedule, newSchedule) {
 }
 
 // 新增单条排课记录
-// 若同 id 已存在则拒绝（返回 exists:true），避免重复写入
-// 返回 { created:boolean, key, exists:boolean }
+// 去重保护：同 id 已存在则拒绝（exists:true）；同 学员+日期+courseId+时间段 已存在也拒绝（duplicate:true）
+// 返回 { created:boolean, key, exists:boolean, duplicate?:boolean, existing?:Schedule }
 export async function addSchedule(schedule) {
   const studentId = schedule.studentId
   const month = schedule.date.slice(0, 7)
@@ -552,6 +578,17 @@ export async function addSchedule(schedule) {
     // 去重保护：同 id 已存在则拒绝
     if (list.some((s) => s.id === schedule.id)) {
       return { created: false, key, exists: true }
+    }
+    // 业务级去重：同 日期+courseId+时间段 已存在则拒绝
+    const dup = list.find(
+      (s) =>
+        s.date === schedule.date &&
+        s.courseId === schedule.courseId &&
+        s.startTime === schedule.startTime &&
+        s.endTime === schedule.endTime,
+    )
+    if (dup) {
+      return { created: false, key, exists: false, duplicate: true, existing: dup }
     }
 
     list.push({ ...schedule })

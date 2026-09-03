@@ -29,12 +29,12 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `list_courses()` — 课程列表（含颜色、默认时间）
 
 **写操作**：
-- `add_schedule({schedule})` — 新增单条排课
-- `batch_add_schedules({courseId, courseName, color?, dates[], startTime?, endTime?, note?, studentIds[]})` — 多学员×多日期批量排课
+- `add_schedule({schedule})` — 新增单条排课（startTime/endTime 必填；courseName 由后端根据 courseId 自动补全）
+- `batch_add_schedules({courseId, dates[], startTime?, endTime?, color?, note?, studentIds[]})` — 多学员×多日期批量排课（courseName 后端自动补全；时间缺省时 MCP 层自动取课程默认时间，课程未配置默认时间则报错；**业务级去重：同学员+同日+同 courseId+同时段已存在时自动跳过并计入 skipped**）
 - `update_schedule({old, new})` — 修改排课（id 必须一致，支持跨学员/跨月迁移）
 - `delete_schedule({confirm, id, studentId, date})` — 删单条排课
 - `add_student({name})` / `update_student({id, name})` / `delete_student({confirm, studentId})`
-- `add_course({name, ...})` / `update_course / delete_course({confirm, courseId})`
+- `add_course({name, defaultStartTime, defaultEndTime, color?})` — 新增课程（默认上下课时间必填；id 后端自动生成）/ `update_course({id, name, defaultStartTime, defaultEndTime, color?})` / `delete_course({confirm, courseId})`
 - `save_announcement({content})` — 保存公告（Markdown，上限 5000 字，空串=清空）
 
 ## 字段规范（严格遵守）
@@ -47,7 +47,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 | `month` | `yyyy-MM` | `2026-09` |
 
 - 用户说"下周三"等相对日期时，先换算为绝对日期再调用工具
-- `Schedule` 对象字段：`id?`, `studentId`, `studentName`, `courseId?`, `courseName`, `date`, `startTime`, `endTime`, `note?`, `color?`
+- `Schedule` 对象字段：`id?`, `studentId`, `studentName`(后端补全), `courseId`(必填), `courseName`(后端根据 courseId 补全，不采信传入值), `date`, `startTime`/`endTime`(写操作必填), `note?`, `color?`(缺省取课程颜色)
 
 ## 标准工作流
 
@@ -62,10 +62,11 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 1. `list_students` 拿准确 studentId
 2. `list_courses` 确认课程存在，取 courseId、courseName、color、默认时间
 3. 换算相对日期为绝对日期列表
-4. `batch_add_schedules({courseId, courseName, color, dates, studentIds, startTime?, endTime?})` — 时间缺省时用课程默认时间
-5. 向用户报告 `{created, skipped, errors}`；skipped/errors 非零时逐条解释
-6. `search_schedules({startDate, endDate})` 复核结果并展示
-7. **批量排课完成后调用 `build_schedule_page` 生成看板**（见第 5 节），把生成的 HTML 文件路径告知用户
+4. **排课前查重**：`search_schedules({startDate: 最早日期, endDate: 最晚日期, courseId})` 拉取该课程区间内已有排课，比对 (studentId, date) 组合，把已存在的组合从待提交列表中剔除并向用户说明"这些已排过，跳过"。导入签到表等批量场景尤其必须执行此步
+5. `batch_add_schedules({courseId, dates, studentIds, startTime?, endTime?})` — 时间缺省时 MCP 层自动用课程默认时间；课程未配置默认时间时需显式传入
+6. 向用户报告 `{created, skipped, errors}`；skipped/errors 非零时逐条解释（后端也有业务级去重兜底：同学员+同日+同courseId+同时段自动跳过，双保险）
+7. `search_schedules({startDate, endDate})` 复核结果并展示
+8. **批量排课完成后调用 `build_schedule_page` 生成看板**（见第 5 节），把生成的 HTML 文件路径告知用户
 
 ### 3. 调课（update）
 用户说"把张伟周二的课挪到周五 15:00"：
@@ -115,4 +116,4 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - 解析文件**优先用 MCP 工具**：`parse_docx({filePath})` / `parse_xlsx({filePath})`，传文件绝对路径，直接返回 UTF-8 文本，不要自己写 PowerShell 脚本解析
 - 解析 docx 时注意：合并单元格的值只出现在首个单元格，后续行为空（如班型/时间只写在组内第一行）；"请假"标记在对应日期列
 - `test-files/` 目录已被 gitignore，测试文件放这里不会推送到远程
-- 导入签到表流程：`parse_docx`/`parse_xlsx` 解析 → `list_students` + `list_courses` 核对姓名与课程（课程不存在时先向用户确认命名再 `add_course`）→ 请假日期不排课或按用户要求处理 → `batch_add_schedules` 按班型分批写入（同班型多学员可一次调用；不传时间则自动用课程默认时间）→ `search_schedules` 复核
+- 导入签到表流程：`parse_docx`/`parse_xlsx` 解析 → `list_students` + `list_courses` 核对姓名与课程（课程不存在时先向用户确认命名再 `add_course`）→ 请假日期不排课或按用户要求处理 → **查重：`search_schedules` 比对已有排课，剔除已存在的 (学员, 日期) 组合** → `batch_add_schedules` 按班型分批写入（同班型多学员可一次调用；时间用课程默认时间或显式传入）→ `search_schedules` 复核

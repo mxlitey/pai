@@ -103,6 +103,14 @@ export function ScheduleEditor({
       setError('日期格式应为 yyyy-MM-dd')
       return
     }
+    if (!form.startTime || !form.endTime) {
+      setError('请填写上课时间（开始与结束时间均为必填）')
+      return
+    }
+    if (form.startTime && form.endTime && form.startTime >= form.endTime) {
+      setError('结束时间必须晚于开始时间')
+      return
+    }
     if (!form.studentId) {
       setError('请选择学员')
       return

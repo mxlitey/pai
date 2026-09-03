@@ -20,10 +20,12 @@ function validateCourse(c) {
     throw new Error('name 需为 1-64 字符的字符串')
   }
   if (c.color && typeof c.color !== 'string') throw new Error('color 需为字符串')
-  if (c.defaultStartTime && !/^\d{2}:\d{2}$/.test(c.defaultStartTime)) {
+  if (!c.defaultStartTime) throw new Error('缺少 defaultStartTime（默认开始时间为必填项）')
+  if (!c.defaultEndTime) throw new Error('缺少 defaultEndTime（默认结束时间为必填项）')
+  if (!/^\d{2}:\d{2}$/.test(c.defaultStartTime)) {
     throw new Error('defaultStartTime 格式应为 HH:mm')
   }
-  if (c.defaultEndTime && !/^\d{2}:\d{2}$/.test(c.defaultEndTime)) {
+  if (!/^\d{2}:\d{2}$/.test(c.defaultEndTime)) {
     throw new Error('defaultEndTime 格式应为 HH:mm')
   }
 }

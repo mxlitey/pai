@@ -363,8 +363,8 @@ pai/
 | `parse_docx` | 解析本地 docx 文件（正文段落 + 表格，用于签到表导入） |
 | `parse_xlsx` | 解析本地 xlsx 文件（全部工作表，支持合并单元格/日期） |
 | `build_schedule_page` | 生成月度排课总览 HTML 看板（每日安排 + 考勤矩阵，自动识别请假） |
-| `add_schedule` | 新增单条排课（缺省时间自动套用课程默认时段） |
-| `batch_add_schedules` | 批量新增排课（日期×学员笛卡尔积） |
+| `add_schedule` | 新增单条排课（时间必填；同学员同日同时段同课程重复时拒绝写入） |
+| `batch_add_schedules` | 批量新增排课（日期×学员笛卡尔积，同学员同日同时段同课程自动去重跳过） |
 | `update_schedule` | 修改排课（含跨月/跨学员迁移） |
 | `delete_schedule` | 删除单条排课 |
 | `add_student` | 新增学员 |

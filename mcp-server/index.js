@@ -212,7 +212,7 @@ server.registerTool(
   'add_schedule',
   {
     title: '新增单条排课',
-    description: '为单个学员新增一条排课记录。id 可留空（服务端容忍缺省）；建议先 list_students / list_courses 确认 studentId 与课程信息。',
+    description: '为单个学员新增一条排课记录。id/courseName 由服务端自动生成或补全；startTime/endTime 必填（不会自动套用课程默认时间，需要时先 list_courses 查询）；同学员同日同时段同课程已存在时返回 409 不重复写入；建议先 list_students 确认 studentId。',
     inputSchema: { schedule: scheduleSchema },
   },
   async ({ schedule }) => {
@@ -228,31 +228,31 @@ server.registerTool(
   'batch_add_schedules',
   {
     title: '批量排课（多学员 × 多日期）',
-    description: '为多个学员在多个日期批量排同一门课（dates × studentIds 笛卡尔积）。时间默认取课程的默认上下课时间，可显式覆盖。',
+    description: '为多个学员在多个日期批量排同一门课（dates × studentIds 笛卡尔积）。courseName 由后端根据 courseId 自动补全；startTime/endTime 必填，缺省时本工具自动取课程默认上下课时间（课程未配置默认时间则报错）。业务级去重：同学员同日同时段同课程已存在时自动跳过并计入 skipped，不会重复写入。',
     inputSchema: {
       courseId: z.string().describe('课程 ID'),
-      courseName: z.string().describe('课程名称（需与课程列表一致）'),
-      color: z.string().optional().describe('颜色标签 key（通常取课程的颜色）'),
       dates: z.array(dateSchema).min(1).describe('日期列表，每个 yyyy-MM-dd'),
-      startTime: timeSchema.optional().describe('开始时间 HH:mm（缺省用课程默认）'),
-      endTime: timeSchema.optional().describe('结束时间 HH:mm（缺省用课程默认）'),
+      startTime: timeSchema.optional().describe('开始时间 HH:mm（缺省自动用课程默认时间）'),
+      endTime: timeSchema.optional().describe('结束时间 HH:mm（缺省自动用课程默认时间）'),
+      color: z.string().optional().describe('颜色标签 key（缺省取课程颜色）'),
       note: z.string().optional().describe('备注'),
       studentIds: z.array(studentIdSchema).min(1).describe('学员 ID 列表'),
     },
   },
   async (body) => {
-    // 后端不会自动套用课程默认时间（缺省即写空串），此处补齐：
-    // startTime/endTime/color 缺省时，从课程列表取该课程的默认值
-    if (body.courseId && (!body.startTime || !body.endTime || !body.color)) {
+    // 后端 startTime/endTime 必填；缺省时此处从课程列表补齐默认值（courseName/color 后端自动补全）
+    if (body.courseId && (!body.startTime || !body.endTime)) {
       const coursesResult = await apiRequest('/api/courses', { auth: true })
       if (coursesResult.code === 0) {
         const course = (coursesResult.data?.courses || []).find((c) => c.id === body.courseId)
         if (course) {
           if (!body.startTime && course.defaultStartTime) body.startTime = course.defaultStartTime
           if (!body.endTime && course.defaultEndTime) body.endTime = course.defaultEndTime
-          if (!body.color && course.color) body.color = course.color
         }
       }
+    }
+    if (!body.startTime || !body.endTime) {
+      return textResult('错误：startTime/endTime 为必填项。课程未配置默认时间时需显式传入（可先 list_courses 查看）。')
     }
     return textResult(toText(await apiRequest('/api/schedule-add-batch', { method: 'POST', body })))
   },
@@ -340,13 +340,12 @@ server.registerTool(
   'add_course',
   {
     title: '新增课程',
-    description: '新增课程。id 全局唯一；可配置颜色标签与默认上下课时间（批量排课时会使用默认时间）。',
+    description: '新增课程。id 由后端自动生成（传入被忽略，新建后需 list_courses 回读真实 id）；默认上下课时间为必填（批量排课缺省时间时会使用）。',
     inputSchema: {
-      id: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, '课程 ID 仅允许字母、数字、下划线、短横线'),
       name: z.string().min(1).describe('课程名称'),
       color: z.string().optional().describe('颜色标签 key，如 blue/green'),
-      defaultStartTime: timeSchema.optional().describe('默认开始时间 HH:mm'),
-      defaultEndTime: timeSchema.optional().describe('默认结束时间 HH:mm'),
+      defaultStartTime: timeSchema.describe('默认开始时间 HH:mm（必填）'),
+      defaultEndTime: timeSchema.describe('默认结束时间 HH:mm（必填）'),
     },
   },
   async (course) => {
@@ -358,13 +357,13 @@ server.registerTool(
   'update_course',
   {
     title: '更新课程',
-    description: '更新课程信息（按 id 定位）。注意：不会级联更新已有排课记录中的 courseName。',
+    description: '更新课程信息（按 id 定位）。默认上下课时间为必填；不会级联更新已有排课记录中的 courseName。',
     inputSchema: {
       id: z.string().describe('课程 ID'),
       name: z.string().min(1).describe('课程名称'),
       color: z.string().optional().describe('颜色标签 key'),
-      defaultStartTime: timeSchema.optional().describe('默认开始时间 HH:mm'),
-      defaultEndTime: timeSchema.optional().describe('默认结束时间 HH:mm'),
+      defaultStartTime: timeSchema.describe('默认开始时间 HH:mm（必填）'),
+      defaultEndTime: timeSchema.describe('默认结束时间 HH:mm（必填）'),
     },
   },
   async (course) => {
