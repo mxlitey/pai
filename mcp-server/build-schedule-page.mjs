@@ -109,9 +109,9 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     const own = new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.date))
     const m = courseMeta[st.course]
     const cells = dates.map((d) => {
-      if (own.has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:${m.text};">●</td>`
-      if (datesOfCourse[st.course].has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#D8B4A0;" title="请假">✕</td>`
-      return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#C9C7BF;">–</td>`
+      if (own.has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:${m.text};background:${m.fill};font-size:14px;">●</td>`
+      if (datesOfCourse[st.course].has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#A32D2D;background:#FCEBEB;font-weight:500;">✕</td>`
+      return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">·</td>`
     }).join('')
     const total = datesOfCourse[st.course].size
     const leave = leaveOf[st.name].length
@@ -181,7 +181,8 @@ ${cards}
   <h2>考勤矩阵</h2>
   <div class="legend">
 ${courseOrder.map((cn) => `<span><i class="dot" style="background:${courseMeta[cn].stroke}"></i>${cn}</span>`).join('\n')}
-    <span style="color:#A9A79F;">✕ 请假未排</span>
+    <span style="color:#A32D2D;">✕ 请假</span>
+    <span style="color:#A9A79F;">· 无课</span>
   </div>
   <table>
     <thead><tr><th style="text-align:left;padding-left:0;">学员</th>${dates.map((d) => `<th>${mdFmt(d)}</th>`).join('')}<th>合计</th></tr></thead>
