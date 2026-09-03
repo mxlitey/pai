@@ -122,13 +122,13 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   </tr>`
   }).join('\n')
 
-  const title = titleOverride || `艺术体操 · ${year}年${mon}月`
+  const title = titleOverride || `${year}年${mon}月排课看板`
   const mdFmt = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}` }
   const subParts = [`共 ${dates.length} 次训练`]
   if (makeupSet.size) subParts.push(`${[...makeupSet].sort().map(mdFmt).join(' 与 ')} 为补课`)
   subParts.push(`生成于 ${todayStr}`)
   const subtitle = subParts.join(' · ')
-  const fileName = outFile || `艺术体操${mon}月排课表.html`
+  const fileName = outFile || `${year}年${mon}月排课看板.html`
 
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
