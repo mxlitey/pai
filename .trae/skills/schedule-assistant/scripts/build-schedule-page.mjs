@@ -17,19 +17,21 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   const [year, mon] = month.split('-').map(Number)
 
   // ---------- 颜色 ----------
-  // 色相拉开间距：coral=橙 / amber=金黄 / red=正红，green=草绿 / teal=青蓝，pink=洋红 / purple=紫
+  // 与前端 src/utils/courseColors.ts 的 COURSE_COLOR_OPTIONS 对齐（10 色 + slate 兜底）
   const COLOR_HEX = {
-    blue: { fill: '#E3F0FC', stroke: '#1D6FD6', text: '#0B4A8F' },
-    green: { fill: '#EAF6DA', stroke: '#6AA30D', text: '#426E06' },
-    purple: { fill: '#EDEBFD', stroke: '#6A5AE0', text: '#42379C' },
-    teal: { fill: '#DCF3F4', stroke: '#0FA0A8', text: '#07626A' },
-    coral: { fill: '#FDEADC', stroke: '#ED7417', text: '#93480D' },
-    pink: { fill: '#FBE3F1', stroke: '#DA3B93', text: '#8F2159' },
-    amber: { fill: '#FCF3CF', stroke: '#D8A007', text: '#7A5B03' },
-    red: { fill: '#FBEAEA', stroke: '#DB2B2B', text: '#7E1414' },
-    gray: { fill: '#F1EFE8', stroke: '#6B6A64', text: '#444441' },
+    blue: { fill: '#EFF6FF', stroke: '#3B82F6', text: '#1D4ED8' },
+    green: { fill: '#F0FDF4', stroke: '#22C55E', text: '#15803D' },
+    purple: { fill: '#FAF5FF', stroke: '#A855F7', text: '#7E22CE' },
+    orange: { fill: '#FFF7ED', stroke: '#F97316', text: '#C2410C' },
+    rose: { fill: '#FFF1F2', stroke: '#F43F5E', text: '#BE123C' },
+    teal: { fill: '#F0FDFA', stroke: '#14B8A6', text: '#0F766E' },
+    amber: { fill: '#FFFBEB', stroke: '#F59E0B', text: '#B45309' },
+    indigo: { fill: '#EEF2FF', stroke: '#6366F1', text: '#4338CA' },
+    cyan: { fill: '#ECFEFF', stroke: '#06B6D4', text: '#0E7490' },
+    pink: { fill: '#FDF2F8', stroke: '#EC4899', text: '#BE185D' },
+    slate: { fill: '#F8FAFC', stroke: '#94A3B8', text: '#475569' },
   }
-  const colorOf = (key) => COLOR_HEX[key] || COLOR_HEX.gray
+  const colorOf = (key) => COLOR_HEX[key] || COLOR_HEX.slate
 
   // 课程顺序以后端返回顺序为准，颜色取课程自带 color
   const courseOrder = []
@@ -43,7 +45,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   for (const s of schedules) {
     if (!courseMeta[s.courseName]) {
       courseOrder.push(s.courseName)
-      courseMeta[s.courseName] = COLOR_HEX.gray
+      courseMeta[s.courseName] = COLOR_HEX.slate
     }
   }
 

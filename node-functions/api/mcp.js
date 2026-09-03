@@ -140,16 +140,16 @@ const scheduleSchema = {
   properties: {
     id: { type: 'string', description: '排课记录唯一 ID（新增时可留空由系统生成；更新时必填）' },
     studentId: studentIdSchema,
-    studentName: { type: 'string', description: '学员姓名' },
-    courseId: { type: 'string', description: '关联课程 ID（历史记录可能为空）' },
-    courseName: { type: 'string', description: '课程名称' },
+    studentName: { type: 'string', description: '学员姓名（新增时缺省由后端按 studentId 自动补全）' },
+    courseId: { type: 'string', description: '关联课程 ID（新增时必填且须存在于课程表；courseName 由后端根据 courseId 自动补全）' },
+    courseName: { type: 'string', description: '课程名称（后端根据 courseId 自动补全，不采信传入值）' },
     date: dateSchema,
-    startTime: { type: 'string', description: '开始时间 HH:mm（历史数据可能为空串）' },
-    endTime: { type: 'string', description: '结束时间 HH:mm（历史数据可能为空串）' },
+    startTime: { type: 'string', description: '开始时间 HH:mm（新增时必填；历史数据可能为空串）' },
+    endTime: { type: 'string', description: '结束时间 HH:mm（新增时必填；历史数据可能为空串）' },
     note: { type: 'string', description: '备注' },
     color: { type: 'string', description: '颜色标签 key，如 blue/green（通常从课程继承）' },
   },
-  required: ['studentId', 'studentName', 'courseName', 'date', 'startTime', 'endTime'],
+  required: ['studentId', 'courseId', 'date', 'startTime', 'endTime'],
 }
 
 // ========== 工具注册表 ==========

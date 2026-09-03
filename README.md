@@ -187,8 +187,8 @@ git push -u origin main
 | `id` | string | 是 | 唯一标识，服务端自动生成 `c_` 前缀，不可自定义 |
 | `name` | string | 是 | 课程名称，1-64 字符 |
 | `color` | string | 否 | 颜色标签 key：blue/green/purple/orange/rose/teal/amber/indigo/cyan/pink |
-| `defaultStartTime` | string | 否 | 默认开始时间，格式 `HH:mm` |
-| `defaultEndTime` | string | 否 | 默认结束时间，格式 `HH:mm` |
+| `defaultStartTime` | string | 是 | 默认开始时间，格式 `HH:mm`（新增/更新课程时必填；批量排课缺省时间时自动套用） |
+| `defaultEndTime` | string | 是 | 默认结束时间，格式 `HH:mm`（新增/更新课程时必填；批量排课缺省时间时自动套用） |
 
 ### Schedule（排课记录）
 
@@ -198,12 +198,12 @@ git push -u origin main
 |------|------|------|------|
 | `id` | string | 是 | 唯一标识，服务端由时间戳 + 计数器 + 随机后缀生成，不可自定义 |
 | `studentId` | string | 是 | 关联学员 id，必须存在于学员表 |
-| `studentName` | string | 是 | 学员姓名（冗余存储，学员改名时级联更新） |
-| `courseId` | string | 否 | 关联课程 id（历史数据可能为空） |
-| `courseName` | string | 是 | 课程名称 |
+| `studentName` | string | 否 | 学员姓名（冗余存储，学员改名时级联更新；新增时缺省由后端按 studentId 自动补全） |
+| `courseId` | string | 是（新增） | 关联课程 id，新增时必填且必须存在于课程表；历史数据可能为空 |
+| `courseName` | string | 是 | 课程名称（后端根据 courseId 自动补全，不采信传入值） |
 | `date` | string | 是 | 上课日期，格式 `yyyy-MM-dd` |
-| `startTime` | string | 否 | 开始时间，格式 `HH:mm` |
-| `endTime` | string | 否 | 结束时间，格式 `HH:mm` |
+| `startTime` | string | 是（新增） | 开始时间，格式 `HH:mm`；历史数据可能为空串 |
+| `endTime` | string | 是（新增） | 结束时间，格式 `HH:mm`；历史数据可能为空串 |
 | `note` | string | 否 | 备注 |
 | `color` | string | 否 | 颜色标签 key，从课程带过来 |
 
