@@ -2,31 +2,33 @@
 // POST /api/mcp —— MCP 客户端（Trae / Claude Desktop / Cursor 等）入口
 //
 // 协议：MCP Streamable HTTP（无会话），单次 POST 独立处理 JSON-RPC 2.0 消息
-// 架构：MCP 客户端 →（HTTPS）→ 本函数 →（函数内直调同项目 /api/* 处理函数）→ Blob 存储
-//       不发起 HTTP 自请求，业务校验逻辑与 REST API 完全同源
+// 架构：MCP 客户端 →（HTTPS）→ 本函数 →（函数内直调 _lib/h-*.js 业务逻辑）→ Blob 存储
+//       不发起 HTTP 自请求，业务校验逻辑与 REST API 完全同源（api/*.js 与本文件复用同一实现）
 //
 // 鉴权（复用环境变量 ADMIN_PASSWORD）：
 //   客户端在每次请求携带请求头 X-Admin-Password: <管理员密码>
 //   （或 Authorization: Bearer <管理员密码>，也兼容 Bearer <token>）
 //   校验通过后本函数签发内部 token 调用鉴权 API；只读公开工具（查学员/查排课/读公告）无需密码
 //
+// 注：业务逻辑统一从 _lib/h-*.js 导入（而非 ./xxx.js api 文件）——EdgeOne 按函数名做方法路由，
+//     若 import api 文件，其 default 导出（onRequestGet/Post/...）会污染本路由 bundle 的方法分发
 // 注：旧版本地 stdio MCP Server 已归档于 mcp-server/（维护模式，不再更新）
 import { getTokenSecret, signToken, verifyPassword, verifyToken } from '../_lib/auth.js'
-import studentsApi from './students.js'
-import schedulesApi from './schedules.js'
-import schedulesSearchApi from './schedules-search.js'
-import coursesApi from './courses.js'
-import announcementApi from './announcement.js'
-import courseAddApi from './course-add.js'
-import courseUpdateApi from './course-update.js'
-import courseDeleteApi from './course-delete.js'
-import studentAddApi from './student-add.js'
-import studentUpdateApi from './student-update.js'
-import studentDeleteApi from './student-delete.js'
-import scheduleAddApi from './schedule-add.js'
-import scheduleAddBatchApi from './schedule-add-batch.js'
-import scheduleUpdateApi from './schedule-update.js'
-import scheduleDeleteApi from './schedule-delete.js'
+import { handleStudentsGet as studentsApi } from '../_lib/h-students.js'
+import { handleSchedulesGet as schedulesApi } from '../_lib/h-schedules.js'
+import { handleSchedulesSearchGet as schedulesSearchApi } from '../_lib/h-schedules-search.js'
+import { handleCoursesGet as coursesApi } from '../_lib/h-courses.js'
+import { handleAnnouncement as announcementApi } from '../_lib/h-announcement.js'
+import { handleCourseAdd as courseAddApi } from '../_lib/h-course-add.js'
+import { handleCourseUpdate as courseUpdateApi } from '../_lib/h-course-update.js'
+import { handleCourseDelete as courseDeleteApi } from '../_lib/h-course-delete.js'
+import { handleStudentAdd as studentAddApi } from '../_lib/h-student-add.js'
+import { handleStudentUpdate as studentUpdateApi } from '../_lib/h-student-update.js'
+import { handleStudentDelete as studentDeleteApi } from '../_lib/h-student-delete.js'
+import { handleScheduleAdd as scheduleAddApi } from '../_lib/h-schedule-add.js'
+import { handleScheduleAddBatch as scheduleAddBatchApi } from '../_lib/h-schedule-add-batch.js'
+import { handleScheduleUpdate as scheduleUpdateApi } from '../_lib/h-schedule-update.js'
+import { handleScheduleDelete as scheduleDeleteApi } from '../_lib/h-schedule-delete.js'
 
 const SERVER_NAME = 'pai-schedule-mcp'
 const SERVER_VERSION = '2.0.0'

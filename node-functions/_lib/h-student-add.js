@@ -1,0 +1,72 @@
+// 新增学员 API
+// POST /api/student-add  body: { student }
+// 用于后台学员管理页面新增单个学员
+import { addStudent, json } from './store.js'
+import { requireAuth } from './auth.js'
+import { genStudentId } from './id.js'
+
+async function readBody(request) {
+  try {
+    return (await request.json()) || {}
+  } catch {
+    return {}
+  }
+}
+
+// 校验学员记录必填字段与格式（id 由服务端生成，不校验）
+function validateStudent(s) {
+  if (!s) throw new Error('学员数据不能为空')
+  if (!s.name) throw new Error('缺少 name')
+  if (typeof s.name !== 'string' || s.name.length > 32) {
+    throw new Error('name 需为 1-32 字符的字符串')
+  }
+}
+
+export async function handleStudentAdd(context) {
+  const authFail = await requireAuth(context)
+  if (authFail) return authFail
+  const { request } = context
+  const body = await readBody(request)
+  const { student } = body
+
+  if (!student) {
+    return json(
+      { code: 1, message: '请求体需包含 student 字段', data: null },
+      400,
+    )
+  }
+
+  try {
+    validateStudent(student)
+  } catch (e) {
+    return json({ code: 1, message: e.message, data: null }, 400)
+  }
+
+  try {
+    // 规整字段，避免脏数据落库；id 由服务端自动生成
+    const finalStudent = {
+      id: genStudentId(),
+      name: student.name.trim(),
+    }
+
+    const result = await addStudent(finalStudent)
+    if (result.exists) {
+      return json(
+        { code: 1, message: `学员 id="${finalStudent.id}" 已存在，不可重复新增`, data: null },
+        409,
+      )
+    }
+    return json({
+      code: 0,
+      message: '学员已新增',
+      data: { ...result, student: finalStudent },
+    })
+  } catch (e) {
+    // 仅记录日志，不向客户端回显内部异常
+    console.error('[student-add] 新增异常:', e?.message || String(e))
+    return json(
+      { code: 1, message: '新增失败，请稍后重试', data: null },
+      500,
+    )
+  }
+}
