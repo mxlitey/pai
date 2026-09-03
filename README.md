@@ -139,6 +139,45 @@ git push -u origin main
 
 ***
 
+## 🧑‍💻 本地开发
+
+环境要求：Node ≥ 18。
+
+### 前端
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+```
+
+开发模式下 `/api` 请求由 Vite 代理转发（见 [`vite.config.ts`](vite.config.ts)），默认目标 `http://localhost:8788`。
+
+### 后端（Node Functions）
+
+使用 EdgeOne CLI 在本地同时运行静态站点与边缘函数：
+
+```bash
+npm install -g edgeone
+edgeone login        # 首次使用需登录腾讯云账号
+edgeone pages dev    # 启动本地调试服务（前端 + node-functions）
+```
+
+- 若本地服务端口与 `8788` 不一致，可调整 CLI 启动端口，或修改 [`vite.config.ts`](vite.config.ts) 中 `server.proxy` 的 `target`
+- `edgeone pages link` 关联控制台项目后，可同步控制台配置的环境变量（`ADMIN_PASSWORD` 等）用于本地调试
+- 也可以跳过本地后端，直接把 Vite 代理目标改为已部署的 EdgeOne 线上域名（如 `https://pai-xxx.edgeone.site`）
+
+### MCP Server 联调
+
+```bash
+cd mcp-server
+npm install
+npm start           # stdio 启动，等待客户端连接
+```
+
+本地联调时 `PAI_BASE_URL` 与 Vite 代理端口保持一致（默认 `http://localhost:8788`）；若后端以其他端口启动，请相应调整。
+
+***
+
 ## 📡 API 一览
 
 | 方法 | 路径 | 鉴权 | 说明 |
@@ -297,6 +336,8 @@ pai/
 │   ├── parse-docx.mjs               # docx 解析器（签到表）
 │   ├── parse-xlsx.mjs               # xlsx 解析器（签到表）
 │   └── package.json
+├── .trae/
+│   └── skills/schedule-assistant/   # Trae 排课助手 Skill（MCP 工作流规范）
 ├── index.html
 ├── package.json
 ├── tailwind.config.js
@@ -313,7 +354,7 @@ pai/
 - **传输方式**：stdio
 - **架构**：MCP Client →（stdio）→ MCP Server →（HTTP）→ EdgeOne Pages Functions（`/api/*`）
 - **鉴权**：通过 `PAI_ADMIN_PASSWORD` 自动登录换取 token（24 小时有效），token 过期自动重登重试
-- **依赖**：Node ≥ 18，`@modelcontextprotocol/sdk` + `zod`
+- **依赖**：Node ≥ 18，`@modelcontextprotocol/sdk` + `zod` + `xlsx`（签到表解析）
 
 ### 环境变量
 
