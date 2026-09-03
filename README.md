@@ -243,8 +243,23 @@ pai/
 │   ├── _lib/
 │   │   ├── auth.js                  # HMAC-SHA256 鉴权、token 签发校验
 │   │   ├── id.js                    # 排课 id 生成器
-│   │   └── store.js                 # Blob 存储封装、写锁、数据操作
-│   └── api/                         # 各业务接口
+│   │   ├── store.js                 # Blob 存储封装、写锁、数据操作
+│   │   ├── h-students.js            # 学员搜索业务逻辑
+│   │   ├── h-student-add.js         # 新增学员业务逻辑
+│   │   ├── h-student-update.js      # 更新学员业务逻辑
+│   │   ├── h-student-delete.js      # 删除学员业务逻辑
+│   │   ├── h-courses.js             # 课程列表业务逻辑
+│   │   ├── h-course-add.js          # 新增课程业务逻辑
+│   │   ├── h-course-update.js       # 更新课程业务逻辑
+│   │   ├── h-course-delete.js       # 删除课程业务逻辑
+│   │   ├── h-schedules.js           # 排课查询业务逻辑
+│   │   ├── h-schedules-search.js    # 跨学员搜索业务逻辑
+│   │   ├── h-schedule-add.js        # 新增排课业务逻辑
+│   │   ├── h-schedule-add-batch.js  # 批量排课业务逻辑
+│   │   ├── h-schedule-update.js     # 修改排课业务逻辑
+│   │   ├── h-schedule-delete.js     # 删除排课业务逻辑
+│   │   └── h-announcement.js        # 公告业务逻辑
+│   └── api/                         # 薄路由层（业务逻辑在 _lib/h-*），mcp.js 入口
 │       ├── announcement.js          # 公告读取(公开)/保存(鉴权)
 │       ├── auth.js                  # 登录/校验
 │       ├── courses.js               # 课程列表
@@ -314,7 +329,7 @@ pai/
 项目内置云端 MCP（Model Context Protocol）服务器（[`node-functions/api/mcp.js`](node-functions/api/mcp.js)），与后端同域部署、随 Git 推送自动上线，客户端无需本地安装任何依赖，只需一个 URL 即可接入，供 Trae、Claude Desktop、Cursor 等支持 MCP 的客户端调用。
 
 - **传输方式**：Streamable HTTP（无状态），入口 `https://<你的域名>/api/mcp`
-- **架构**：MCP 客户端 →（HTTPS + 密码请求头）→ 边缘函数 `mcp.js` →（函数内直调同项目 `/api/*` 处理逻辑）→ EdgeOne Blob 存储，业务校验与 REST API 完全同源
+- **架构**：MCP 客户端 →（HTTPS + 密码请求头）→ 边缘函数 `mcp.js` →（函数内直调 `_lib/h-*.js` 业务逻辑）→ EdgeOne Blob 存储，业务校验与 REST API 完全同源
 - **鉴权**：复用环境变量 `ADMIN_PASSWORD`。只读工具（查学员 / 查排课 / 读公告）公开可用，与前端分享链接安全模型一致；其余工具需在客户端配置请求头 `X-Admin-Password`（值同后台登录密码）
 - **依赖**：客户端零依赖，服务端无新增依赖
 
