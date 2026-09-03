@@ -227,7 +227,7 @@ ${matrixRows}
 </body>
 </html>`
 
-  const file = join(process.cwd(), fileName)
+  const file = fileName.startsWith('/') ? fileName : join(process.cwd(), fileName)
   writeFileSync(file, html, 'utf8')
 
   const summaryLines = [
