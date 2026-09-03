@@ -299,7 +299,7 @@ pai/
 │       └── scripts/                 # 本地脚本（跨平台）
 │           ├── parse-docx.mjs       # docx 解析器（签到表）
 │           ├── parse-xlsx.mjs       # xlsx 解析器（签到表）
-│           └── build-schedule-page.mjs # 排课看板生成（拉后端数据）
+│           └── build-schedule-page.mjs # 排课看板生成（纯渲染）
 ├── index.html
 ├── package.json
 ├── tailwind.config.js
@@ -366,7 +366,7 @@ pai/
 |------|------|------|
 | `parse-docx.mjs` | 解析本地 docx 签到表（正文段落 + 表格） | `node parse-docx.mjs <docx路径>` |
 | `parse-xlsx.mjs` | 解析本地 xlsx 签到表（全部工作表） | `node parse-xlsx.mjs <xlsx路径>` |
-| `build-schedule-page.mjs` | 从后端拉数据生成月度排课看板 HTML | `PAI_BASE_URL=... PAI_ADMIN_PASSWORD=... node build-schedule-page.mjs [--month 2026-09]` |
+| `build-schedule-page.mjs` | 生成月度排课看板 HTML（纯渲染，数据经 `--data` JSON 文件或 stdin 传入） | `node build-schedule-page.mjs --month 2026-09 --data data.json` |
 
 ***
 

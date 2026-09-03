@@ -1,15 +1,13 @@
-// 排课总览页生成器（本地脚本，跨平台）
+// 排课总览页生成器（本地脚本，跨平台，纯渲染零配置）
 //
 // 渲染模块 renderSchedulePage({schedules, courses, month, makeup?, outFile?, titleOverride?})
-// CLI 用法：node build-schedule-page.mjs [--month 2026-09] [--makeup 2026-08-13,2026-08-28] [--out 文件名.html] [--title 标题]
-//   数据从后端实时拉取（EdgeOne Functions /api/*），HTML 输出到当前工作目录
-//
-// 环境变量：
-//   PAI_BASE_URL       后端地址（必填，如 https://pai-xxx.edgeone.site）
-//   PAI_ADMIN_PASSWORD 管理员登录密码（必填，用于换取 token）
+// CLI 用法：node build-schedule-page.mjs --month 2026-09 [--makeup 2026-08-13,2026-08-28] [--out 文件名.html] [--title 标题] (--data data.json | < data.json)
+//   数据由调用方传入（AI 先通过云端 MCP 工具 search_schedules / list_courses 获取后写入 JSON 文件），
+//   JSON 格式：{ "schedules": [...排课记录], "courses": [...课程列表] }
+//   来源：--data <文件路径>，或 stdin 管道；HTML 输出到当前工作目录
 //
 // 请假判定：同班型内，该班型有课但该学员缺席的日期，自动标为「请假」，无需手工传入。
-import { writeFileSync } from 'node:fs'
+import { writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 // ========== 渲染（纯函数：不取数，数据由调用方传入）==========
@@ -237,20 +235,12 @@ ${matrixRows}
   return { file, summary: summaryLines.join('\n') }
 }
 
-// ========== CLI 入口：node build-schedule-page.mjs [--month ...] [--makeup ...] [--out ...] [--title ...] ==========
+// ========== CLI 入口：node build-schedule-page.mjs --month 2026-09 [--data data.json | < data.json] [--makeup ...] [--out ...] [--title ...] ==========
 const isMain = process.argv[1] && (await import('node:url')).fileURLToPath(import.meta.url) === process.argv[1]
 if (isMain) {
   function arg(name) {
     const i = process.argv.indexOf(`--${name}`)
     return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : undefined
-  }
-
-  const BASE_URL = (process.env.PAI_BASE_URL || '').replace(/\/+$/, '')
-  const ADMIN_PASSWORD = process.env.PAI_ADMIN_PASSWORD || ''
-
-  if (!BASE_URL || !ADMIN_PASSWORD) {
-    console.error('缺少环境变量：需同时设置 PAI_BASE_URL（如 https://pai-xxx.edgeone.site）与 PAI_ADMIN_PASSWORD（管理员密码）')
-    process.exit(1)
   }
 
   const month = arg('month') || (() => {
@@ -262,49 +252,41 @@ if (isMain) {
     process.exit(1)
   }
 
-  // 登录换取 token
-  let token
-  try {
-    const resp = await fetch(`${BASE_URL}/api/auth`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: ADMIN_PASSWORD }),
-      signal: AbortSignal.timeout(15000),
-    })
-    const result = await resp.json().catch(() => null)
-    if (!result || result.code !== 0 || !result.data?.token) {
-      throw new Error(result?.message || `登录失败（HTTP ${resp.status}）`)
+  // 读取数据：--data <文件> 优先，否则从 stdin 读（管道传入）
+  async function readInputData() {
+    const dataFile = arg('data')
+    const raw = dataFile
+      ? readFileSync(dataFile, 'utf8')
+      : await new Promise((resolve, reject) => {
+          if (process.stdin.isTTY) {
+            reject(new Error('未提供数据：请用 --data <json文件路径> 传入，或通过管道 stdin 传入'))
+            return
+          }
+          let buf = ''
+          process.stdin.setEncoding('utf8')
+          process.stdin.on('data', (c) => (buf += c))
+          process.stdin.on('end', () => resolve(buf))
+          process.stdin.on('error', reject)
+        })
+    let parsed
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new Error('数据不是合法 JSON')
     }
-    token = result.data.token
-  } catch (e) {
-    console.error(`登录失败: ${e?.message || String(e)}。请检查 PAI_BASE_URL 与 PAI_ADMIN_PASSWORD`)
-    process.exit(1)
-  }
-
-  // 拉取当月排课与课程列表
-  async function apiGet(path) {
-    const resp = await fetch(`${BASE_URL}${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(30000),
-    })
-    if (resp.status === 401) throw new Error('token 已过期，请重试')
-    const result = await resp.json().catch(() => null)
-    if (!result || result.code !== 0) {
-      throw new Error(result?.message || `请求 ${path} 失败（HTTP ${resp.status}）`)
+    const { schedules, courses } = parsed || {}
+    if (!Array.isArray(schedules)) {
+      throw new Error('数据缺少 schedules 数组（JSON 格式：{ "schedules": [...], "courses": [...] }，由 MCP 工具 search_schedules / list_courses 的返回数据组装）')
     }
-    return result.data
+    return { schedules, courses: Array.isArray(courses) ? courses : [] }
   }
 
   try {
-    const [year, mon] = month.split('-').map(Number)
-    const lastDay = new Date(year, mon, 0).getDate()
-    const end = `${month}-${String(lastDay).padStart(2, '0')}`
-    const { schedules = [] } = await apiGet(`/api/schedules-search?startDate=${month}-01&endDate=${end}`)
+    const { schedules, courses } = await readInputData()
     if (!schedules.length) {
       console.log(`${month} 没有任何排课记录，未生成页面。`)
       process.exit(0)
     }
-    const { courses = [] } = await apiGet('/api/courses')
     const makeup = (arg('makeup') || '').split(',').filter(Boolean)
     const { file, summary } = renderSchedulePage({
       schedules,

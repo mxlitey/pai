@@ -39,14 +39,15 @@ node .trae/skills/schedule-assistant/scripts/parse-xlsx.mjs <xlsx文件绝对路
 - docx 返回正文段落 + 全部表格文本（单元格用 `|` 分隔）；xlsx 返回全部工作表（支持合并单元格、日期、数字）
 - 纯本地解析，不连后端，无需环境变量
 
-**排课总览看板生成（从后端实时拉数据，HTML 输出到当前工作目录）**：
-```bash
-PAI_BASE_URL=https://pai-xxx.edgeone.site PAI_ADMIN_PASSWORD=密码 \
-  node .trae/skills/schedule-assistant/scripts/build-schedule-page.mjs [--month 2026-09] [--makeup 2026-08-13,2026-08-28] [--out 文件名.html] [--title 标题]
-```
-- `--month` 缺省为当前月；`--makeup` 为逗号分隔的补课日期；`--out`/`--title` 可覆盖输出文件名与主标题
-- 自动统计：排课条数/训练日期/学员/班型；请假自动识别（同班型有课但该学员缺席 → ✕）
-- 生成后把输出中的完整文件路径告知用户
+**排课总览看板生成（纯渲染，数据由 MCP 工具获取后传入）**：
+1. 先调 MCP 工具取数：`search_schedules({startDate: 月初, endDate: 月末})` 拿排课 + `list_courses()` 拿课程
+2. 用 Write 工具把数据组装为 JSON 文件（如 `schedules-data.json`），格式：`{ "schedules": [...], "courses": [...] }`（直接使用工具返回的数组）
+3. 执行：`node .trae/skills/schedule-assistant/scripts/build-schedule-page.mjs --month 2026-09 --data schedules-data.json`
+   - 也支持管道：`node build-schedule-page.mjs --month 2026-09 < schedules-data.json`
+   - `--month` 缺省为当前月；`--makeup 2026-08-13,2026-08-28` 标记补课日期；`--out`/`--title` 可覆盖输出文件名与主标题
+4. 自动统计：排课条数/训练日期/学员/班型；请假自动识别（同班型有课但该学员缺席 → ✕）
+5. 生成后把输出中的完整文件路径告知用户（HTML 输出到当前工作目录）
+6. 生成后可删除临时 JSON 数据文件
 
 ## 字段规范（严格遵守）
 
@@ -92,11 +93,13 @@ PAI_BASE_URL=https://pai-xxx.edgeone.site PAI_ADMIN_PASSWORD=密码 \
 
 ### 5. 生成排课看板（HTML 总览页）
 触发时机：**批量排课完成后**；或用户要求"看某月排课/看板/总览/导出排课表"时。
-1. 通过 RunCommand 执行本地脚本（见「本地脚本」章节）：`PAI_BASE_URL=... PAI_ADMIN_PASSWORD=... node .trae/skills/schedule-assistant/scripts/build-schedule-page.mjs --month 2026-09`（用户说"这个月/8月"等时换算为 yyyy-MM 传入）
-2. 用户提到补课日期时加 `--makeup`；用户指定输出文件名时加 `--out`
-3. **不要传 `--title`**：默认标题与文件名均为「{yyyy}年{M}月排课看板」（如 2026年8月排课看板），不要加"艺术体操/集训"等业务前缀，仅当用户明确要求自定义标题时才覆盖
-4. 脚本输出统计摘要（排课条数/日期/学员/班型/请假人次），如实转述
-5. HTML 文件生成在当前工作目录，把完整文件路径告知用户，可直接用浏览器打开或打印
+1. `search_schedules({startDate, endDate})` 拉取当月排课 + `list_courses()` 拉取课程列表
+2. 用 Write 工具把两组数据组装为 JSON 文件 `{ "schedules": [...], "courses": [...] }`（直接使用工具返回的数组）
+3. 执行本地脚本（详见「本地脚本」章节）：`node .trae/skills/schedule-assistant/scripts/build-schedule-page.mjs --month 2026-09 --data schedules-data.json`（用户说"这个月/8月"等时换算为 yyyy-MM 传入；数据也可用管道 stdin 传入）
+4. 用户提到补课日期时加 `--makeup`；用户指定输出文件名时加 `--out`
+5. **不要传 `--title`**：默认标题与文件名均为「{yyyy}年{M}月排课看板」（如 2026年8月排课看板），不要加"艺术体操/集训"等业务前缀，仅当用户明确要求自定义标题时才覆盖
+6. 脚本输出统计摘要（排课条数/日期/学员/班型/请假人次），如实转述；生成后删除临时 JSON 数据文件
+7. HTML 文件生成在当前工作目录，把完整文件路径告知用户，可直接用浏览器打开或打印
 
 ## 安全边界（强制）
 
@@ -115,7 +118,7 @@ PAI_BASE_URL=https://pai-xxx.edgeone.site PAI_ADMIN_PASSWORD=密码 \
 - 工具报"该工具需要管理密码" → 告知用户只读操作可用，写操作需在 MCP 客户端配置的请求头中添加 `X-Admin-Password`（值同后台登录密码）
 - 工具报"管理密码错误" → 提示检查 MCP 配置中的 `X-Admin-Password` 是否正确
 - 无法连接 MCP 端点 → 检查云端部署状态与 URL 是否正确（`https://<域名>/api/mcp`）
-- 看板脚本报"缺少环境变量" → 提示设置 `PAI_BASE_URL` 与 `PAI_ADMIN_PASSWORD` 后重试；报"登录失败" → 检查密码
+- 看板脚本报"未提供数据"/"数据缺少 schedules 数组" → 未传入或 JSON 格式不对，按第 5 节流程先取数写入 JSON 再执行
 - `batch_add_schedules` 返回 errors 时，逐条说明失败原因（如 id 碰撞），建议重试
 
 ## 历史数据规范（重要）
