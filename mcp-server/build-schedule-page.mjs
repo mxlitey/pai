@@ -73,14 +73,30 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     }
   }
 
-  // 请假 = 班型有课但该学员缺席
-  const leaveOf = {}
+  // 学员实际报名的全部课程（一个学员可报多门）
+  const coursesOf = {}
   for (const st of studentList) {
-    const own = new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.date))
-    leaveOf[st.name] = [...datesOfCourse[st.course]].filter((d) => !own.has(d)).sort()
+    coursesOf[st.name] = [...new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.courseName))]
   }
 
-  const totalLeave = Object.values(leaveOf).reduce((n, v) => n + v.length, 0)
+  // 请假/应排按学员全部课程累计（同一天上两门课各计 1 次，不按日期去重）
+  const leaveOf = {}
+  const dueOf = {}
+  for (const st of studentList) {
+    const own = new Set(schedules.filter((s) => s.studentName === st.name).map((s) => s.date))
+    let leave = 0
+    let due = 0
+    for (const cn of coursesOf[st.name]) {
+      for (const d of datesOfCourse[cn]) {
+        due++
+        if (!own.has(d)) leave++
+      }
+    }
+    leaveOf[st.name] = leave
+    dueOf[st.name] = due
+  }
+
+  const totalLeave = Object.values(leaveOf).reduce((n, v) => n + v, 0)
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
@@ -111,15 +127,16 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     const m = courseMeta[st.course]
     const cells = dates.map((d) => {
       if (own.has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:${m.stroke};background:${m.fill};font-size:14px;">●</td>`
-      if (datesOfCourse[st.course].has(d)) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#A32D2D;font-weight:500;">✕</td>`
+      if (coursesOf[st.name].some((cn) => datesOfCourse[cn].has(d))) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#A32D2D;font-weight:500;">✕</td>`
       return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">·</td>`
     }).join('')
-    const total = datesOfCourse[st.course].size
-    const leave = leaveOf[st.name].length
+    const total = dueOf[st.name]
+    const leave = leaveOf[st.name]
+    const attended = total - leave
     return `<tr>
     <td style="padding:7px 10px 7px 14px;border-bottom:1px solid #F2F1EC;white-space:nowrap;">${st.name}</td>
     ${cells}
-    <td style="padding:7px 14px 7px 10px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${own.size}/${total}${leave ? `　请假${leave}` : ''}</td>
+    <td style="padding:7px 14px 7px 10px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${attended}/${total}${leave ? `　请假${leave}` : ''}</td>
   </tr>`
   }).join('\n')
 
