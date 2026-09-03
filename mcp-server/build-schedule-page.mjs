@@ -122,7 +122,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   </tr>`
   }).join('\n')
 
-  const title = titleOverride || `艺术体操一三五集训 · ${year}年${mon}月`
+  const title = titleOverride || `艺术体操 · ${year}年${mon}月`
   const mdFmt = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}` }
   const subParts = [`共 ${dates.length} 次训练`]
   if (makeupSet.size) subParts.push(`${[...makeupSet].sort().map(mdFmt).join(' 与 ')} 为补课`)
