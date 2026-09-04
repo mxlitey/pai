@@ -237,6 +237,7 @@ export function ScheduleAdmin({ students, courses, onBack, onToast, onRefreshStu
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500 text-xs">
+                    <th className="text-left py-2 px-2 font-medium w-10">#</th>
                     <th className="text-left py-2 px-2 font-medium">学员</th>
                     <th className="text-left py-2 px-2 font-medium">课程</th>
                     <th className="text-left py-2 px-2 font-medium">日期</th>
@@ -245,11 +246,14 @@ export function ScheduleAdmin({ students, courses, onBack, onToast, onRefreshStu
                   </tr>
                 </thead>
                 <tbody>
-                  {schedules.map((s) => (
+                  {schedules.map((s, idx) => (
                     <tr
                       key={s.id}
                       className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
                     >
+                      <td className="py-2.5 px-2 text-slate-400 text-xs font-mono tabular-nums">
+                        {idx + 1}
+                      </td>
                       <td className="py-2.5 px-2 text-slate-700 font-medium whitespace-nowrap">
                         {s.studentName}
                       </td>
