@@ -98,7 +98,7 @@ node .trae/skills/schedule-assistant/scripts/parse-xlsx.mjs <xlsx文件绝对路
 3. 执行本地脚本（详见「本地脚本」章节）：`node .trae/skills/schedule-assistant/scripts/build-schedule-page.mjs --month 2026-09 --data schedules-data.json`（用户说"这个月/8月"等时换算为 yyyy-MM 传入；数据也可用管道 stdin 传入）
 4. 用户提到补课日期时加 `--makeup`；用户指定输出文件名时加 `--out`
 5. **不要传 `--title`**：默认标题与文件名均为「{yyyy}年{M}月排课看板」（如 2026年8月排课看板），不要加"艺术体操/集训"等业务前缀，仅当用户明确要求自定义标题时才覆盖
-6. 脚本输出统计摘要（排课条数/日期/学员/班型/请假人次），如实转述；生成后删除临时 JSON 数据文件
+6. 脚本输出统计摘要（排课条数/日期/学员/班型），如实转述；生成后删除临时 JSON 数据文件
 7. HTML 文件生成在当前工作目录，把完整文件路径告知用户，可直接用浏览器打开或打印
 
 ## 安全边界（强制）

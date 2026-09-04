@@ -6,7 +6,7 @@
 //   JSON 格式：{ "schedules": [...排课记录], "courses": [...课程列表] }
 //   来源：--data <文件路径>，或 stdin 管道；HTML 输出到当前工作目录
 //
-// 请假判定：同班型内，该班型有课但该学员缺席的日期，自动标为「请假」，无需手工传入。
+// 考勤矩阵：仅标到课 ●，缺席不自动判定请假（不依据排课推断）。
 import { writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -88,23 +88,16 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
       schedules.filter((s) => s.studentName === st.name).map((s) => `${s.courseName}|${s.date}`))
   }
 
-  // 请假/应排按学员全部课程累计（同一天上两门课各计 1 次，不按日期去重）
-  const leaveOf = {}
+  // 应排按学员全部课程累计（同一天上两门课各计 1 次，不按日期去重）
   const dueOf = {}
   for (const st of studentList) {
-    let leave = 0
     let due = 0
     for (const cn of coursesOf[st.name]) {
-      for (const d of datesOfCourse[cn]) {
-        due++
-        if (!attendedOf[st.name].has(`${cn}|${d}`)) leave++
-      }
+      due += datesOfCourse[cn].size
     }
-    leaveOf[st.name] = leave
     dueOf[st.name] = due
   }
 
-  const totalLeave = Object.values(leaveOf).reduce((n, v) => n + v, 0)
   const today = new Date()
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
@@ -131,25 +124,24 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   }).join('\n')
 
   const matrixRows = studentList.map((st) => {
-    // 每门课当天独立渲染标记：到课 ●（该课颜色）/ 缺席 ✕；同日多课并排显示如 ●● / ●✕
+    // 每门课当天独立渲染到课标记 ●（该课颜色）；缺席不标（不推断请假）；同日多课并排显示如 ●●
     const cells = dates.map((d) => {
-      const marks = coursesOf[st.name]
-        .filter((cn) => datesOfCourse[cn].has(d))
+      const coursesOnDay = coursesOf[st.name].filter((cn) => datesOfCourse[cn].has(d))
+      if (!coursesOnDay.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">-</td>`
+      const marks = coursesOnDay
         .map((cn) => attendedOf[st.name].has(`${cn}|${d}`)
           ? `<span class="mark" data-course="${escAttr(cn)}" style="color:${courseMeta[cn].stroke};font-size:14px;">●</span>`
-          : `<span class="mark" data-course="${escAttr(cn)}" style="color:#A32D2D;font-weight:500;font-size:14px;">✕</span>`)
-      if (!marks.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">-</td>`
+          : '')
       return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;">
         <div style="display:flex;justify-content:center;gap:3px;white-space:nowrap;">${marks.join('')}</div>
       </td>`
     }).join('')
     const total = dueOf[st.name]
-    const leave = leaveOf[st.name]
-    const attended = total - leave
+    const attended = attendedOf[st.name].size
     return `<tr>
     <td style="padding:7px 10px 7px 14px;border-bottom:1px solid #F2F1EC;white-space:nowrap;">${st.name}</td>
     ${cells}
-    <td style="padding:7px 14px 7px 10px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${attended}/${total}${leave ? `　请假${leave}` : ''}</td>
+    <td style="padding:7px 14px 7px 10px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${attended}/${total}</td>
   </tr>`
   }).join('\n')
 
@@ -220,16 +212,17 @@ ${cards}
   <h2>考勤矩阵</h2>
   <div class="legend">
 ${courseOrder.map((cn) => `<span class="legend-course" data-course="${escAttr(cn)}" title="点击高亮该班型标识，再次点击恢复"><i class="dot" style="background:${courseMeta[cn].stroke}"></i>${cn}</span>`).join('\n')}
-    <span style="color:#A32D2D;">✕ 请假</span>
     <span style="color:#A9A79F;">- 无课</span>
     <span style="color:#A9A79F;">点击班型可高亮标识</span>
   </div>
+  <div style="overflow-x:auto;border-radius:12px;">
   <table>
     <thead><tr><th>学员</th>${dates.map((d) => `<th>${mdFmt(d)}</th>`).join('')}<th>合计</th></tr></thead>
     <tbody>
 ${matrixRows}
     </tbody>
   </table>
+  </div>
 </div>
 <script>
 (function () {
@@ -264,7 +257,6 @@ ${matrixRows}
   const summaryLines = [
     `已生成 ${file}　${month}　排课 ${schedules.length} 条 / ${dates.length} 个日期 / ${studentList.length} 名学员 / ${courseOrder.length} 个班型`,
   ]
-  if (totalLeave) summaryLines.push(`请假 ${totalLeave} 人次（同班型有课但缺席，自动识别）`)
   return { file, summary: summaryLines.join('\n') }
 }
 
