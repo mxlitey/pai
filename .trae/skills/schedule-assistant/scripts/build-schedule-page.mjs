@@ -6,7 +6,7 @@
 //   JSON 格式：{ "schedules": [...排课记录], "courses": [...课程列表] }
 //   来源：--data <文件路径>，或 stdin 管道；HTML 输出到当前工作目录
 //
-// 考勤矩阵：仅标到课 ●，缺席不自动判定请假（不依据排课推断）。
+// 考勤矩阵：到课 ●；该班型有课但该学员无排课记录 → 空心红圈 ○（预测有课）。
 import { writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -104,16 +104,23 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   // ---------- 渲染 ----------
   const cards = dates.map((d) => {
     const day = schedules.filter((s) => s.date === d)
-    const blocks = courseOrder.map((cn) => {
-      const items = day.filter((s) => s.courseName === cn)
-      if (!items.length) return ''
-      const m = courseMeta[cn]
-      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #EFEFEA;">
-      <span style="flex:0 0 92px;font-size:12px;color:${m.text};font-variant-numeric:tabular-nums;padding-top:1px;">${items[0].startTime}–${items[0].endTime}</span>
-      <span style="flex:1;min-width:0;font-size:13px;line-height:1.7;">${items.map((s) => `<div style="white-space:nowrap;">${s.studentName}</div>`).join('')}</span>
-      <span style="flex:0 0 auto;max-width:96px;font-size:11px;color:${m.text};background:${m.fill};border:0.5px solid ${m.stroke};border-radius:5px;padding:1px 7px;line-height:1.4;text-align:center;overflow-wrap:break-word;word-break:break-all;">${cn}</span>
+    // 按（班型, 开始, 结束）分组，再按开始时间升序排列；同班型同日不同时段可分成多块
+    const groups = new Map()
+    for (const s of day) {
+      const key = `${s.courseName}|${s.startTime}|${s.endTime}`
+      if (!groups.has(key)) groups.set(key, { courseName: s.courseName, startTime: s.startTime, endTime: s.endTime, items: [] })
+      groups.get(key).items.push(s)
+    }
+    const blocks = [...groups.values()]
+      .sort((a, b) => a.startTime.localeCompare(b.startTime))
+      .map((g) => {
+        const m = courseMeta[g.courseName]
+        return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #EFEFEA;">
+      <span style="flex:0 0 92px;font-size:12px;color:${m.text};font-variant-numeric:tabular-nums;padding-top:1px;">${g.startTime}–${g.endTime}</span>
+      <span style="flex:1;min-width:0;font-size:13px;line-height:1.7;">${g.items.map((s) => `<div style="white-space:nowrap;">${s.studentName}</div>`).join('')}</span>
+      <span style="flex:0 0 auto;max-width:96px;font-size:11px;color:${m.text};background:${m.fill};border:0.5px solid ${m.stroke};border-radius:5px;padding:1px 7px;line-height:1.4;text-align:center;overflow-wrap:break-word;word-break:break-all;">${g.courseName}</span>
     </div>`
-    }).join('')
+      }).join('')
     return `<div style="background:#fff;border:0.5px solid #E3E2DC;border-radius:12px;padding:14px 16px;">
     <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
       <span style="font-size:15px;font-weight:500;">${fmtDate(d)}</span>
@@ -124,14 +131,14 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   }).join('\n')
 
   const matrixRows = studentList.map((st) => {
-    // 每门课当天独立渲染到课标记 ●（该课颜色）；缺席不标（不推断请假）；同日多课并排显示如 ●●
+    // 每门课当天独立渲染：到课 ●（该课颜色）；该班型有课但该学员无排课记录 → 空心红圈 ○（预测有课）；同日多课并排显示
     const cells = dates.map((d) => {
       const coursesOnDay = coursesOf[st.name].filter((cn) => datesOfCourse[cn].has(d))
       if (!coursesOnDay.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">-</td>`
       const marks = coursesOnDay
         .map((cn) => attendedOf[st.name].has(`${cn}|${d}`)
           ? `<span class="mark" data-course="${escAttr(cn)}" style="color:${courseMeta[cn].stroke};font-size:14px;">●</span>`
-          : '')
+          : `<span class="mark" data-course="${escAttr(cn)}" style="color:#A32D2D;font-size:14px;">○</span>`)
       return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;">
         <div style="display:flex;justify-content:center;gap:3px;white-space:nowrap;">${marks.join('')}</div>
       </td>`
@@ -141,13 +148,13 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     return `<tr>
     <td style="padding:7px 10px 7px 14px;border-bottom:1px solid #F2F1EC;white-space:nowrap;">${st.name}</td>
     ${cells}
-    <td style="padding:7px 14px 7px 10px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${attended}/${total}</td>
+    <td style="text-align:center;padding:7px 14px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${attended}/${total}</td>
   </tr>`
   }).join('\n')
 
   const title = titleOverride || `${year}年${mon}月排课看板`
   const mdFmt = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}` }
-  const subParts = [`共 ${dates.length} 次训练`]
+  const subParts = [`共 ${dates.length} 天排课`]
   if (makeupSet.size) subParts.push(`${[...makeupSet].sort().map(mdFmt).join(' 与 ')} 为补课`)
   subParts.push(`生成于 ${todayStr}`)
   const subtitle = subParts.join(' · ')
@@ -177,7 +184,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     border: 0.5px solid #E3E2DC; border-radius: 12px; font-size: 13px; }
   th { font-weight: 500; font-size: 12px; color: #7A7973; padding: 14px 4px 8px; text-align: center; white-space: nowrap; }
   th:first-child { text-align: left; padding-left: 14px; }
-  th:last-child { padding-right: 14px; }
+  th:last-child { padding: 14px 14px 8px; }
   tbody tr:last-child td { border-bottom: none; padding-bottom: 12px; }
   .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 12px; font-size: 12px; color: #5F5E5A; }
   .legend span { display: flex; align-items: center; gap: 6px; }
@@ -185,7 +192,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   .legend-course { cursor: pointer; padding: 2px 8px; border-radius: 6px; user-select: none; -webkit-user-select: none; transition: background .15s; }
   .legend-course:hover { background: #EFEFEA; }
   .legend-course.active { background: #EFEFEA; box-shadow: inset 0 0 0 0.5px #DDDAD2; }
-  .mark { display: inline-block; transition: transform .15s ease, opacity .15s ease; }
+  .mark { display: inline-block; cursor: pointer; transition: transform .15s ease, opacity .15s ease; }
   .mark.hl { transform: scale(1.35); text-shadow: 0 0 5px currentColor; }
   .mark.dim { opacity: .18; }
   @media (max-width: 600px) { .stats { grid-template-columns: repeat(2, minmax(0,1fr)); } body { padding: 24px 16px 48px; } }
@@ -199,7 +206,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
 
   <div class="stats">
     <div class="stat"><div class="k">排课记录</div><div class="v">${schedules.length}</div></div>
-    <div class="stat"><div class="k">训练日期</div><div class="v">${dates.length}</div></div>
+    <div class="stat"><div class="k">排课日期</div><div class="v">${dates.length}</div></div>
     <div class="stat"><div class="k">学员</div><div class="v">${studentList.length}</div></div>
     <div class="stat"><div class="k">班型</div><div class="v">${courseOrder.length}</div></div>
   </div>
@@ -213,7 +220,7 @@ ${cards}
   <div class="legend">
 ${courseOrder.map((cn) => `<span class="legend-course" data-course="${escAttr(cn)}" title="点击高亮该班型标识，再次点击恢复"><i class="dot" style="background:${courseMeta[cn].stroke}"></i>${cn}</span>`).join('\n')}
     <span style="color:#A9A79F;">- 无课</span>
-    <span style="color:#A9A79F;">点击班型可高亮标识</span>
+    <span style="color:#A32D2D;">○ 预测有课</span>
   </div>
   <div style="overflow-x:auto;border-radius:12px;">
   <table>
@@ -240,11 +247,34 @@ ${matrixRows}
       m.classList.toggle('dim', any && !on)
     })
   }
+  function clearActive() {
+    items.forEach(function (it) { it.classList.remove('active') })
+    refresh()
+  }
+  function toggleCourse(cn) {
+    items.forEach(function (it) {
+      if (it.getAttribute('data-course') === cn) it.classList.toggle('active')
+    })
+    refresh()
+  }
   items.forEach(function (it) {
     it.addEventListener('click', function () {
       it.classList.toggle('active')
       refresh()
     })
+  })
+  // 点击表格里的标识（●/○）等价于点击对应班型徽章
+  marks.forEach(function (m) {
+    m.addEventListener('click', function (ev) {
+      ev.stopPropagation()
+      toggleCourse(m.getAttribute('data-course'))
+    })
+  })
+  // 点击空白处（非徽章/非标识）恢复原状
+  document.addEventListener('click', function (ev) {
+    if (!ev.target.closest('.legend-course') && !ev.target.closest('.mark')) {
+      clearActive()
+    }
   })
 })()
 </script>
