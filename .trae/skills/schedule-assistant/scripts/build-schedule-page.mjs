@@ -138,7 +138,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
         .map((cn) => attendedOf[st.name].has(`${cn}|${d}`)
           ? `<span class="mark" data-course="${escAttr(cn)}" style="color:${courseMeta[cn].stroke};font-size:14px;">●</span>`
           : `<span class="mark" data-course="${escAttr(cn)}" style="color:#A32D2D;font-weight:500;font-size:14px;">✕</span>`)
-      if (!marks.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">·</td>`
+      if (!marks.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">-</td>`
       return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;">
         <div style="display:flex;justify-content:center;gap:3px;white-space:nowrap;">${marks.join('')}</div>
       </td>`
@@ -221,8 +221,7 @@ ${cards}
   <div class="legend">
 ${courseOrder.map((cn) => `<span class="legend-course" data-course="${escAttr(cn)}" title="点击高亮该班型标识，再次点击恢复"><i class="dot" style="background:${courseMeta[cn].stroke}"></i>${cn}</span>`).join('\n')}
     <span style="color:#A32D2D;">✕ 请假</span>
-    <span style="color:#A9A79F;">· 无课</span>
-    <span style="color:#A9A79F;">同日多课并排显示（如 ●● / ●✕）</span>
+    <span style="color:#A9A79F;">- 无课</span>
     <span style="color:#A9A79F;">点击班型可高亮标识</span>
   </div>
   <table>
