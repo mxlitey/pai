@@ -32,6 +32,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     slate: { fill: '#F8FAFC', stroke: '#94A3B8', text: '#475569' },
   }
   const colorOf = (key) => COLOR_HEX[key] || COLOR_HEX.slate
+  const escAttr = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
 
   // 课程顺序以后端返回顺序为准，颜色取课程自带 color
   const courseOrder = []
@@ -135,8 +136,8 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
       const marks = coursesOf[st.name]
         .filter((cn) => datesOfCourse[cn].has(d))
         .map((cn) => attendedOf[st.name].has(`${cn}|${d}`)
-          ? `<span style="color:${courseMeta[cn].stroke};font-size:14px;">●</span>`
-          : `<span style="color:#A32D2D;font-weight:500;font-size:14px;">✕</span>`)
+          ? `<span class="mark" data-course="${escAttr(cn)}" style="color:${courseMeta[cn].stroke};font-size:14px;">●</span>`
+          : `<span class="mark" data-course="${escAttr(cn)}" style="color:#A32D2D;font-weight:500;font-size:14px;">✕</span>`)
       if (!marks.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">·</td>`
       return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;">
         <div style="display:flex;justify-content:center;gap:3px;white-space:nowrap;">${marks.join('')}</div>
@@ -189,6 +190,12 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 12px; font-size: 12px; color: #5F5E5A; }
   .legend span { display: flex; align-items: center; gap: 6px; }
   .dot { width: 10px; height: 10px; border-radius: 3px; }
+  .legend-course { cursor: pointer; padding: 2px 8px; border-radius: 6px; user-select: none; -webkit-user-select: none; transition: background .15s; }
+  .legend-course:hover { background: #EFEFEA; }
+  .legend-course.active { background: #EFEFEA; box-shadow: inset 0 0 0 0.5px #DDDAD2; }
+  .mark { display: inline-block; transition: transform .15s ease, opacity .15s ease; }
+  .mark.hl { transform: scale(1.35); text-shadow: 0 0 5px currentColor; }
+  .mark.dim { opacity: .18; }
   @media (max-width: 600px) { .stats { grid-template-columns: repeat(2, minmax(0,1fr)); } body { padding: 24px 16px 48px; } }
   @media print { body { background: #fff; padding: 0; } .grid { grid-template-columns: repeat(2, 1fr); } }
 </style>
@@ -212,10 +219,11 @@ ${cards}
 
   <h2>考勤矩阵</h2>
   <div class="legend">
-${courseOrder.map((cn) => `<span><i class="dot" style="background:${courseMeta[cn].stroke}"></i>${cn}</span>`).join('\n')}
+${courseOrder.map((cn) => `<span class="legend-course" data-course="${escAttr(cn)}" title="点击高亮该班型标识，再次点击恢复"><i class="dot" style="background:${courseMeta[cn].stroke}"></i>${cn}</span>`).join('\n')}
     <span style="color:#A32D2D;">✕ 请假</span>
     <span style="color:#A9A79F;">· 无课</span>
     <span style="color:#A9A79F;">同日多课并排显示（如 ●● / ●✕）</span>
+    <span style="color:#A9A79F;">点击班型可高亮标识</span>
   </div>
   <table>
     <thead><tr><th>学员</th>${dates.map((d) => `<th>${mdFmt(d)}</th>`).join('')}<th>合计</th></tr></thead>
@@ -224,6 +232,30 @@ ${matrixRows}
     </tbody>
   </table>
 </div>
+<script>
+(function () {
+  var items = [].slice.call(document.querySelectorAll('.legend-course'))
+  var marks = [].slice.call(document.querySelectorAll('.mark'))
+  function refresh() {
+    var active = {}
+    var any = false
+    items.forEach(function (it) {
+      if (it.classList.contains('active')) { active[it.getAttribute('data-course')] = true; any = true }
+    })
+    marks.forEach(function (m) {
+      var on = !!active[m.getAttribute('data-course')]
+      m.classList.toggle('hl', on)
+      m.classList.toggle('dim', any && !on)
+    })
+  }
+  items.forEach(function (it) {
+    it.addEventListener('click', function () {
+      it.classList.toggle('active')
+      refresh()
+    })
+  })
+})()
+</script>
 </body>
 </html>`
 
