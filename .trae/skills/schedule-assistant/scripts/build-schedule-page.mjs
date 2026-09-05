@@ -200,7 +200,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
 
   <div class="stats">
     <div class="stat"><div class="k">排课记录</div><div class="v">${schedules.length}</div></div>
-    <div class="stat"><div class="k">排课日期</div><div class="v">${dates.length}</div></div>
+    <div class="stat"><div class="k">排课天数</div><div class="v">${dates.length}</div></div>
     <div class="stat"><div class="k">学员</div><div class="v">${studentList.length}</div></div>
     <div class="stat"><div class="k">班型</div><div class="v">${courseOrder.length}</div></div>
   </div>
