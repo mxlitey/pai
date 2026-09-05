@@ -46,7 +46,7 @@ node .trae/skills/schedule-assistant/scripts/parse-xlsx.mjs <xlsx文件绝对路
 3. 执行：`node .trae/skills/schedule-assistant/scripts/build-schedule-page.mjs --month 2026-09 --data schedules-data.json`
    - 也支持管道：`node build-schedule-page.mjs --month 2026-09 < schedules-data.json`
    - `--month` 缺省为当前月；`--makeup 2026-08-13,2026-08-28` 标记补课日期；`--out`/`--title` 可覆盖输出文件名与主标题
-4. 自动统计：排课条数/训练日期/学员/班型；考勤矩阵：到课 ●，该班型有课但学员无记录 → 空心红圈 ○（预测有课）；每日安排按开始时间升序
+4. 自动统计：排课条数/训练日期/学员/班型；考勤矩阵（真实点名数据 attendance 字段）：到课 ● 班型色+浅色底 / 缺勤 ✕ 红 / 未点名 ● 班型色无底（旧数据无 attendance 字段按未点名），合计列三态分列「X到·Y缺·Z未」；每日安排按开始时间升序
 5. 生成后把输出中的完整文件路径告知用户（HTML 输出到当前工作目录）
 6. 生成后可删除临时 JSON 数据文件
 
