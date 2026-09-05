@@ -1,11 +1,11 @@
 ---
 name: "schedule-assistant"
-description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排课查询、新增、批量排课、学员课程管理。当用户要求查课/排课/调课/删课/管理学员课程公告时调用。Invoke when user asks about schedules, students, courses, announcements or batch scheduling."
+description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排课查询、新增、批量排课、学员课程管理、点名考勤。当用户要求查课/排课/调课/删课/点名/管理学员课程公告时调用。Invoke when user asks about schedules, students, courses, attendance, announcements or batch scheduling."
 ---
 
 # 排课助手（Schedule Assistant）
 
-通过云端 `pai-schedule` MCP server（`https://<域名>/api/mcp`，配置请求头 `X-Admin-Password`）提供的 16 个工具管理排课日历系统，配合本 skill 自带的本地脚本（签到表解析、看板生成）。本 skill 定义标准工作流、字段规范与安全边界。
+通过云端 `pai-schedule` MCP server（`https://<域名>/api/mcp`，配置请求头 `X-Admin-Password`）提供的 17 个工具管理排课日历系统，配合本 skill 自带的本地脚本（签到表解析、看板生成）。本 skill 定义标准工作流、字段规范与安全边界。
 
 ## 可用工具一览
 
@@ -22,6 +22,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `add_schedule({schedule})` — 新增单条排课（startTime/endTime 必填；courseName 由后端根据 courseId 自动补全）
 - `batch_add_schedules({courseId, dates[], startTime?, endTime?, color?, note?, studentIds[]})` — 多学员×多日期批量排课（courseName 后端自动补全；时间缺省时 MCP 层自动取课程默认时间，课程未配置默认时间则报错；**业务级去重：同学员+同日+同 courseId+同时段已存在时自动跳过并计入 skipped**）
 - `update_schedule({old, new})` — 修改排课（id 必须一致，支持跨学员/跨月迁移）
+- `set_attendance({id, studentId, date, attendance})` — 点名：设置单条排课到课状态（attended=到课 / absent=缺勤 / none=清除标记回到未点名；需先查到排课 id；返回 `{updatedCount, notFound}`，notFound 非空说明该排课已不存在）
 - `delete_schedule({confirm, id, studentId, date})` — 删单条排课
 - `add_student({name})` / `update_student({id, name})` / `delete_student({confirm, studentId})`
 - `add_course({name, defaultStartTime, defaultEndTime, color?})` — 新增课程（默认上下课时间必填；id 后端自动生成）/ `update_course({id, name, defaultStartTime, defaultEndTime, color?})` / `delete_course({confirm, courseId})`
@@ -59,7 +60,7 @@ node .trae/skills/schedule-assistant/scripts/parse-xlsx.mjs <xlsx文件绝对路
 | `month` | `yyyy-MM` | `2026-09` |
 
 - 用户说"下周三"等相对日期时，先换算为绝对日期再调用工具
-- `Schedule` 对象字段：`id?`, `studentId`, `studentName`(后端补全), `courseId`(必填), `courseName`(后端根据 courseId 补全，不采信传入值), `date`, `startTime`/`endTime`(写操作必填), `note?`, `color?`(缺省取课程颜色)
+- `Schedule` 对象字段：`id?`, `studentId`, `studentName`(后端补全), `courseId`(必填), `courseName`(后端根据 courseId 补全，不采信传入值), `date`, `startTime`/`endTime`(写操作必填), `note?`, `color?`(缺省取课程颜色), `attendance?`(点名状态：attended=到课 / absent=缺勤，字段缺省=未点名；由 `set_attendance` 设置，新增/修改排课时不传该字段)
 
 ## 标准工作流
 
@@ -101,6 +102,13 @@ node .trae/skills/schedule-assistant/scripts/parse-xlsx.mjs <xlsx文件绝对路
 6. 脚本输出统计摘要（排课条数/日期/学员/班型），如实转述；生成后删除临时 JSON 数据文件
 7. HTML 文件生成在当前工作目录，把完整文件路径告知用户，可直接用浏览器打开或打印
 
+### 6. 点名（考勤标记）
+用户说"给今天的课点名""张伟昨天缺勤了""把这节课改回未点名"：
+1. `search_schedules({startDate: 目标日期, endDate: 目标日期, courseId?, studentId?})` 拉取要点名的排课，取每条的 `id`/`studentId`/`date`
+2. 向用户确认要点名的学员名单与状态（到课/缺勤/清除），逐条 `set_attendance({id, studentId, date, attendance})`，**串行执行**（见安全边界 4）
+3. 返回的 `notFound` 非空时如实告知"该排课已不存在（可能已被删除）"
+4. 点名后 `search_schedules` 复核，`attendance` 字段：attended=到课 / absent=缺勤 / 缺省=未点名
+
 ## 安全边界（强制）
 
 1. **删除类工具**（`delete_schedule` / `delete_student` / `delete_course`）：
@@ -109,7 +117,7 @@ node .trae/skills/schedule-assistant/scripts/parse-xlsx.mjs <xlsx文件绝对路
    - 确认后才传 `confirm: true` 执行
 2. **不代用户猜测**：学员重名、课程名不确定、日期歧义（"周末"是周六还是周日）时，先澄清再操作
 3. **写操作前先读**：排课前必须先 `list_students` + `list_courses` 核实 ID，不要凭记忆编造 ID
-4. **串行执行写操作**：涉及同一学员或多条写操作时，**禁止并行调用**写工具（含 `update_schedule`、`update_student` 等多人批量修复场景）。后端 Blob 存储为读-改-写模式，并发写同一文件会相互覆盖（竞态丢数据）。必须逐条串行执行：调用一条 → 等返回成功 → 再调下一条。若某条失败，重试该条后再继续
+4. **串行执行写操作**：涉及同一学员或多条写操作时，**禁止并行调用**写工具（含 `update_schedule`、`set_attendance`、`update_student` 等多人批量修复场景）。后端 Blob 存储为读-改-写模式，并发写同一文件会相互覆盖（竞态丢数据）。必须逐条串行执行：调用一条 → 等返回成功 → 再调下一条。若某条失败，重试该条后再继续
 5. **报告结果**：所有写操作完成后主动展示后端返回结果，失败时如实报告，不静默吞错
 6. **公告**：修改公告前先 `get_announcement` 展示当前内容，确认用户意图后再保存
 
