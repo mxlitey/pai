@@ -103,7 +103,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
         const m = courseMeta[g.courseName]
         return `<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid #EFEFEA;">
       <span style="flex:0 0 92px;font-size:12px;color:${m.text};font-variant-numeric:tabular-nums;padding-top:1px;">${g.startTime}–${g.endTime}</span>
-      <span style="flex:1;min-width:0;font-size:13px;line-height:1.7;">${g.items.map((s) => `<div style="white-space:nowrap;">${s.studentName}</div>`).join('')}</span>
+      <span style="flex:1;min-width:0;font-size:13px;line-height:1.7;">${g.items.map((s, i) => (i ? ', ' : '') + `<span style="white-space:nowrap;">${s.studentName}</span>`).join('')}</span>
       <span style="flex:0 0 auto;max-width:96px;font-size:11px;color:${m.text};background:${m.fill};border:0.5px solid ${m.stroke};border-radius:5px;padding:1px 7px;line-height:1.4;text-align:center;overflow-wrap:break-word;word-break:break-all;">${g.courseName}</span>
     </div>`
       }).join('')
@@ -117,7 +117,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   }).join('\n')
 
   const matrixRows = studentList.map((st) => {
-    // 每门课当天独立渲染真实点名状态：到课 ● 班型色+浅色底；缺勤 ✕ 红；未点名 ● 班型色无底；同日多课并排显示
+    // 每门课当天独立渲染真实点名状态：到课 ● 班型色+浅色底；缺勤 ✕ 班型色；未点名 ● 班型色无底；同日多课并排显示
     const cells = dates.map((d) => {
       const marks = []
       for (const cn of courseOrder) {
