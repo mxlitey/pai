@@ -143,14 +143,14 @@ const scheduleSchema = {
   properties: {
     id: { type: 'string', description: '排课记录唯一 ID（新增时可留空由系统生成；更新时必填）' },
     studentId: studentIdSchema,
-    studentName: { type: 'string', description: '学员姓名（不再存储于排课：读取排课时由后端按 studentId 自动 join 返回；写入排课时可不传）' },
-    courseId: { type: 'string', description: '关联课程 ID（新增时必填且须存在于课程表；读取排课时 courseName 由后端根据 courseId 自动 join 返回）' },
-    courseName: { type: 'string', description: '课程名称（不再存储于排课：读取排课时由后端根据 courseId join 返回，不采信写入值）' },
+    studentName: { type: 'string', description: '学员姓名' },
+    courseId: { type: 'string', description: '课程 ID（新增时必填且须为已存在课程的 ID）' },
+    courseName: { type: 'string', description: '课程名称' },
     date: dateSchema,
-    startTime: { type: 'string', description: '开始时间 HH:mm（新增时必填；历史数据可能为空串）' },
-    endTime: { type: 'string', description: '结束时间 HH:mm（新增时必填；历史数据可能为空串）' },
+    startTime: { type: 'string', description: '开始时间 HH:mm' },
+    endTime: { type: 'string', description: '结束时间 HH:mm' },
     note: { type: 'string', description: '备注' },
-    color: { type: 'string', description: '颜色标签 key，如 blue/green（不再存储于排课：读取排课时由后端按课程 join 返回）' },
+    color: { type: 'string', description: '颜色标签 key，如 blue/green' },
   },
   required: ['studentId', 'courseId', 'date', 'startTime', 'endTime'],
 }
@@ -161,8 +161,7 @@ const TOOLS = [
   {
     name: 'list_students',
     title: '搜索学员',
-    description:
-      '按关键字搜索学员（支持 id 或姓名的精确/模糊匹配）。不传 q 返回全部学员。返回学员的 id 和 name。',
+    description: '按关键字搜索学员（支持 id 或姓名匹配）；不传 q 返回全部学员。',
     inputSchema: {
       type: 'object',
       properties: { q: { type: 'string', description: '搜索关键字（学员姓名或 ID）' } },
@@ -176,7 +175,7 @@ const TOOLS = [
     name: 'get_schedules',
     title: '查询单个学员的排课',
     description:
-      '按学员 ID 或姓名查询排课记录。可传 studentId 或 studentName（二选一）。不传日期范围时返回该学员全部排课。',
+      '按学员 ID 或姓名查询排课记录（可传 studentId 或 studentName，二选一）；不传日期范围时返回该学员全部排课。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -206,7 +205,7 @@ const TOOLS = [
     name: 'search_schedules',
     title: '跨学员搜索排课',
     description:
-      '按日期范围 + 可选课程 ID / 学员 ID 过滤排课（聚合所有学员）。任一参数可缺省；全部缺省时返回全量排课。需管理密码。',
+      '按日期范围、课程 ID、学员 ID 过滤排课（聚合所有学员）；任一参数可缺省，全部缺省时返回全量排课。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -230,8 +229,7 @@ const TOOLS = [
   {
     name: 'list_courses',
     title: '获取课程列表',
-    description:
-      '获取全部课程（含 id、名称、颜色标签、默认上下课时间）。排课前建议先调用确认 courseId。需管理密码。',
+    description: '获取全部课程（含 id、名称、颜色标签、默认上下课时间）。排课前建议先调用确认 courseId。需管理密码。',
     inputSchema: { type: 'object', properties: {} },
     handler: async (a, ctx) => {
       needToken(ctx)
@@ -242,7 +240,7 @@ const TOOLS = [
     name: 'add_schedule',
     title: '新增单条排课',
     description:
-      '为单个学员新增一条排课记录。id/courseName 由服务端自动生成或补全；startTime/endTime 必填（不会自动套用课程默认时间，需要时先 list_courses 查询）；同学员同日同时段同课程已存在时返回 409 不重复写入；建议先 list_students 确认 studentId。需管理密码。',
+      '为单个学员新增一条排课记录。startTime/endTime 必填（不会自动套用课程默认时间，需要时先 list_courses 查询）；同学员同日同时段同课程已存在时返回 409 不重复写入。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: { schedule: scheduleSchema },
@@ -263,7 +261,7 @@ const TOOLS = [
     name: 'batch_add_schedules',
     title: '批量排课（多学员 × 多日期）',
     description:
-      '为多个学员在多个日期批量排同一门课（dates × studentIds 笛卡尔积）。startTime/endTime 缺省时自动取课程默认上下课时间（课程未配置默认时间则报错）；courseName/color 不存储于排课，读取时由后端按 courseId join 返回。业务级去重：同学员同日同时段同课程已存在时自动跳过并计入 skipped。需管理密码。',
+      '为多个学员在多个日期批量排同一门课（dates × studentIds 笛卡尔积）。startTime/endTime 缺省时自动取课程默认上下课时间（课程未配置默认时间则报错）；同学员同日同时段同课程已存在时自动跳过并计入 skipped。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -271,7 +269,6 @@ const TOOLS = [
         dates: { type: 'array', items: dateSchema, minItems: 1, description: '日期列表，每个 yyyy-MM-dd' },
         startTime: { ...timeSchema, description: '开始时间 HH:mm（缺省自动用课程默认时间）' },
         endTime: { ...timeSchema, description: '结束时间 HH:mm（缺省自动用课程默认时间）' },
-        color: { type: 'string', description: '颜色标签 key（已废弃：不再存储于排课，读取时按课程 join 返回；传入将忽略）' },
         note: { type: 'string', description: '备注' },
         studentIds: { type: 'array', items: studentIdSchema, minItems: 1, description: '学员 ID 列表' },
       },
@@ -309,7 +306,7 @@ const TOOLS = [
     name: 'update_schedule',
     title: '修改排课',
     description:
-      '修改一条排课记录。old 必须是修改前的完整原始记录（用于定位），new 是修改后的完整记录；两者 id 必须一致。支持跨学员/跨月迁移（后端自动处理文件移动）。需管理密码。',
+      '修改一条排课记录。old 为修改前的完整原始记录（用于定位），new 为修改后的完整记录；两者 id 必须一致。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: { old: scheduleSchema, new: scheduleSchema },
@@ -397,7 +394,7 @@ const TOOLS = [
     name: 'add_student',
     title: '新增学员',
     description:
-      '新增学员。id 由后端自动生成（传入被忽略，新建后需 list_students 回读真实 id 再用于排课）。需管理密码。',
+      '新增一个学员。id 由后端自动生成（传入被忽略），新增后可用 list_students 查询到真实 id。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: { name: { type: 'string', minLength: 1, description: '学员姓名' } },
@@ -417,8 +414,7 @@ const TOOLS = [
   {
     name: 'update_student',
     title: '更新学员',
-    description:
-      '更新学员信息（按 id 定位）。排课中已不冗余存储 studentName，改姓名后所有排课在读取时会自动反映新姓名，无需级联。需管理密码。',
+    description: '更新指定学员的姓名等信息（按 id 定位）。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -466,7 +462,7 @@ const TOOLS = [
     name: 'add_course',
     title: '新增课程',
     description:
-      '新增课程。id 由后端自动生成（传入被忽略，新建后需 list_courses 回读真实 id）；默认上下课时间为必填（批量排课缺省时间时会使用）。需管理密码。',
+      '新增一门课程。id 由后端自动生成（传入被忽略）；默认上下课时间必填。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -487,8 +483,7 @@ const TOOLS = [
   {
     name: 'update_course',
     title: '更新课程',
-    description:
-      '更新课程信息（按 id 定位）。默认上下课时间为必填；排课中已不冗余存储 courseName/color，改课程后所有排课读取时自动反映新名称与颜色。需管理密码。',
+    description: '更新指定课程的信息（按 id 定位）。默认上下课时间必填。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {
