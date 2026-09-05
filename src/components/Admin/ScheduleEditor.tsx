@@ -70,14 +70,14 @@ export function ScheduleEditor({
     setSuccess('')
   }
 
-  // 课程下拉选择：选中后带出课程名称、颜色与默认时间段
+  // 课程下拉选择：选中后带出课程名称与默认时间段
+  // 注：课程名/颜色不再作为排课存储字段，读取时由后端 join 返回，这里仅用于界面展示与默认时间带出
   const handleCourseSelect = (courseId: string) => {
     setForm((f) => {
       const next = { ...f, courseId }
       const course = courses.find((c) => c.id === courseId)
       if (course) {
         next.courseName = course.name
-        if (course.color) next.color = course.color
         // 课程配置了默认时间则带出；未配置则保留现值
         if (course.defaultStartTime) next.startTime = course.defaultStartTime
         if (course.defaultEndTime) next.endTime = course.defaultEndTime

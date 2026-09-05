@@ -259,9 +259,10 @@ export async function deleteCourse(
 }
 
 // 批量新增排课（按课程为多个学员在多个日期同时排课）
+// courseName / color 无需在前端提交：后端根据 courseId 自动 join 返回，不采信传入值
 export async function batchAddSchedules(body: {
   courseId: string
-  courseName: string
+  courseName?: string
   color?: string
   dates: string[] // 多日期，每个 yyyy-MM-dd
   startTime?: string

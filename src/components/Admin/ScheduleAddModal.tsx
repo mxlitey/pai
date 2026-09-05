@@ -142,9 +142,7 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
     setSaving(true)
     try {
       const result = await batchAddSchedules({
-        courseId,
-        courseName: selectedCourse.name,
-        color: selectedCourse.color || '',
+        courseId, // 课程名称/颜色由后端根据 courseId 自动 join 返回，前端无需也无需提交
         dates,
         startTime,
         endTime,
