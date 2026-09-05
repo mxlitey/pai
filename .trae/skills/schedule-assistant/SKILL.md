@@ -19,10 +19,10 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `list_courses()` — 课程列表（含颜色、默认时间）
 
 **写操作**：
-- `add_schedule({schedule})` — 新增单条排课（startTime/endTime 必填；courseName 由后端根据 courseId 自动补全）
-- `batch_add_schedules({courseId, dates[], startTime?, endTime?, color?, note?, studentIds[]})` — 多学员×多日期批量排课（courseName 后端自动补全；时间缺省时 MCP 层自动取课程默认时间，课程未配置默认时间则报错；**业务级去重：同学员+同日+同 courseId+同时段已存在时自动跳过并计入 skipped**）
-- `update_schedule({old, new})` — 修改排课（id 必须一致，支持跨学员/跨月迁移）
-- `set_attendance({id, studentId, date, attendance})` — 点名：设置单条排课到课状态（attended=到课 / absent=缺勤 / none=清除标记回到未点名；需先查到排课 id；返回 `{updatedCount, notFound}`，notFound 非空说明该排课已不存在）
+- `add_schedule({schedule})` — 新增单条排课（startTime/endTime 必填）
+- `batch_add_schedules({courseId, dates[], startTime?, endTime?, note?, studentIds[]})` — 多学员×多日期批量排同一门课（时间缺省时自动取课程默认时间，课程未配置默认时间则报错；**业务级去重：同学员+同日+同 courseId+同时段已存在时自动跳过并计入 skipped**）
+- `update_schedule({old, new})` — 修改排课（old 为修改前完整原始记录，new 为修改后完整记录，两者 id 必须一致）
+- `set_attendance({id, studentId, date, attendance})` — 点名：设置单条排课到课状态，取值 attended=到课 / absent=缺勤 / none=清除标记（回到未点名），需先查到排课 id
 - `delete_schedule({confirm, id, studentId, date})` — 删单条排课
 - `add_student({name})` / `update_student({id, name})` / `delete_student({confirm, studentId})`
 - `add_course({name, defaultStartTime, defaultEndTime, color?})` — 新增课程（默认上下课时间必填；id 后端自动生成）/ `update_course({id, name, defaultStartTime, defaultEndTime, color?})` / `delete_course({confirm, courseId})`
@@ -60,7 +60,7 @@ node .trae/skills/schedule-assistant/scripts/parse-xlsx.mjs <xlsx文件绝对路
 | `month` | `yyyy-MM` | `2026-09` |
 
 - 用户说"下周三"等相对日期时，先换算为绝对日期再调用工具
-- `Schedule` 对象字段：`id?`, `studentId`, `studentName`(后端补全), `courseId`(必填), `courseName`(后端根据 courseId 补全，不采信传入值), `date`, `startTime`/`endTime`(写操作必填), `note?`, `color?`(缺省取课程颜色), `attendance?`(点名状态：attended=到课 / absent=缺勤，字段缺省=未点名；由 `set_attendance` 设置，新增/修改排课时不传该字段)
+- `Schedule` 对象字段：`id?`, `studentId`, `studentName`, `courseId`(必填), `courseName`, `date`, `startTime`/`endTime`(写操作必填), `note?`, `color?`, `attendance?`(点名状态：attended=到课 / absent=缺勤，字段缺省=未点名；由 `set_attendance` 设置，新增/修改排课时不传该字段)
 
 ## 标准工作流
 
