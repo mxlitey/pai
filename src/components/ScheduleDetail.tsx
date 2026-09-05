@@ -26,6 +26,7 @@ export function ScheduleDetail({ schedule, onClose }: ScheduleDetailProps) {
     { label: '课程名称', value: schedule.courseName },
     { label: '日期', value: format(date, 'yyyy年M月d日 EEEE', { locale: zhCN }) },
     { label: '时间', value: `${schedule.startTime} - ${schedule.endTime}` },
+    { label: '到课状态', value: attendanceText(schedule.attendance) },
     { label: '学员姓名', value: schedule.studentName },
   ]
 
@@ -81,4 +82,11 @@ export function ScheduleDetail({ schedule, onClose }: ScheduleDetailProps) {
       </div>
     </div>
   )
+}
+
+// 点名状态文案：attendance 缺省视为未点名
+function attendanceText(attendance?: Schedule['attendance']): string {
+  if (attendance === 'attended') return '到课'
+  if (attendance === 'absent') return '缺勤'
+  return '未点名'
 }

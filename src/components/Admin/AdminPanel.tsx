@@ -20,6 +20,7 @@ import { ShareLinksAdmin } from './ShareLinksAdmin'
 import { StudentAdmin } from './StudentAdmin'
 import { CourseAdmin } from './CourseAdmin'
 import { ScheduleAdmin } from './ScheduleAdmin'
+import { AttendanceAdmin } from './AttendanceAdmin'
 import { AdminLogin } from './AdminLogin'
 import { cn } from '@/utils/cn'
 
@@ -34,6 +35,7 @@ type SubPage =
   | 'students'
   | 'courses'
   | 'schedules'
+  | 'attendance'
   | 'announcement'
   | 'shareLinks'
   | null
@@ -50,6 +52,7 @@ function readSubPageFromHash(): SubPage {
       'students',
       'courses',
       'schedules',
+      'attendance',
       'announcement',
       'shareLinks',
     ]
@@ -101,7 +104,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
   }
 
   // 显示 toast
-  const showToast = (type: Toast['type'], message: string) => {
+  const showToast = (type: NonNullable<Toast>['type'], message: string) => {
     setToast({ type, message })
     setTimeout(() => setToast(null), 3500)
   }
@@ -370,9 +373,6 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     }
   }
 
-  const inputClass =
-    'w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent'
-
   // 校验中：显示加载状态
   if (checking) {
     return (
@@ -473,6 +473,19 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
           onBack={() => goSubPage(null)}
           onToast={showToast}
           onRefreshStudents={loadStudents}
+        />
+        {toast && <ToastView toast={toast} />}
+      </>
+    )
+  }
+
+  // 点名管理二级页面
+  if (activeSubPage === 'attendance') {
+    return (
+      <>
+        <AttendanceAdmin
+          onBack={() => goSubPage(null)}
+          onToast={showToast}
         />
         {toast && <ToastView toast={toast} />}
       </>
@@ -589,6 +602,27 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
               className="btn-primary text-sm py-1.5 px-3"
             >
               进入排课管理 →
+            </button>
+          </div>
+        </section>
+
+        {/* 点名管理入口 */}
+        <section className="card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <span className="w-1 h-4 bg-brand-500 rounded"></span>
+                点名管理
+              </h2>
+              <div className="text-xs text-slate-500 mt-1.5 ml-3">
+                按日期点名，三态标记到课/缺勤
+              </div>
+            </div>
+            <button
+              onClick={() => goSubPage('attendance')}
+              className="btn-primary text-sm py-1.5 px-3"
+            >
+              进入点名管理 →
             </button>
           </div>
         </section>

@@ -28,6 +28,7 @@ import { handleStudentDelete as studentDeleteApi } from '../_lib/h-student-delet
 import { handleScheduleAdd as scheduleAddApi } from '../_lib/h-schedule-add.js'
 import { handleScheduleAddBatch as scheduleAddBatchApi } from '../_lib/h-schedule-add-batch.js'
 import { handleScheduleUpdate as scheduleUpdateApi } from '../_lib/h-schedule-update.js'
+import { handleScheduleAttendance as scheduleAttendanceApi } from '../_lib/h-schedule-attendance.js'
 import { handleScheduleDelete as scheduleDeleteApi } from '../_lib/h-schedule-delete.js'
 
 const SERVER_NAME = 'pai-schedule-mcp'
@@ -320,6 +321,40 @@ const TOOLS = [
         await callApi(
           scheduleUpdateApi,
           { method: 'PUT', path: '/api/schedule-update', body: { old: a.old, new: a.new } },
+          ctx,
+        ),
+      )
+    },
+  },
+  {
+    name: 'set_attendance',
+    title: '点名（设置到课状态）',
+    description:
+      '为一条排课记录设置点名状态。可先用 search_schedules / get_schedules 查询排课 id。需管理密码。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '排课记录 ID' },
+        studentId: studentIdSchema,
+        date: dateSchema,
+        attendance: {
+          type: 'string',
+          enum: ['attended', 'absent', 'none'],
+          description: 'attended=到课，absent=缺勤，none=清除标记（回到未点名）',
+        },
+      },
+      required: ['id', 'studentId', 'date', 'attendance'],
+    },
+    handler: async (a, ctx) => {
+      needToken(ctx)
+      return apiResultToTool(
+        await callApi(
+          scheduleAttendanceApi,
+          {
+            method: 'PUT',
+            path: '/api/schedule-attendance',
+            body: { updates: [{ id: a.id, studentId: a.studentId, date: a.date, attendance: a.attendance }] },
+          },
           ctx,
         ),
       )

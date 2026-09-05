@@ -24,6 +24,11 @@ export function ScheduleCard({ schedule, compact = false, onClick }: ScheduleCar
           colorClass,
         )}
       >
+        {schedule.attendance && (
+          <span className={schedule.attendance === 'attended' ? 'text-green-700' : 'text-rose-600'}>
+            {schedule.attendance === 'attended' ? '✓ ' : '✕ '}
+          </span>
+        )}
         <span className="font-medium">{formatTimeShort(schedule.startTime)}</span>{' '}
         {schedule.courseName}
       </button>
@@ -46,6 +51,16 @@ export function ScheduleCard({ schedule, compact = false, onClick }: ScheduleCar
             {schedule.startTime} - {schedule.endTime}
           </div>
         </div>
+        {schedule.attendance && (
+          <span
+            className={cn(
+              'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-medium text-white',
+              schedule.attendance === 'attended' ? 'bg-green-600' : 'bg-rose-600',
+            )}
+          >
+            {schedule.attendance === 'attended' ? '✓ 到课' : '✕ 缺勤'}
+          </span>
+        )}
       </div>
     </button>
   )

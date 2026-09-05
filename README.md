@@ -39,6 +39,7 @@
 - 👥 **学员管理**：分页表格、新增 / 编辑 / 删除（二次确认）、ID 自动生成、姓名变更级联更新排课
 - 📚 **课程管理**：10 色颜色标签、默认时段记忆、删除同时清理关联排课
 - 🗂️ **排课管理**：双 tab（按学员 / 按日期+课程筛选）、单条新增、批量新增（日期×学员笛卡尔积）、跨月跨学员迁移
+- ✅ **点名管理**：按日期点名、课程×时段平铺分块、三态标记（到课 / 未点名 / 缺勤）、一键全部到课
 - 📢 **公告管理**：编辑 / 预览双 tab，Markdown 实时渲染，字数统计
 - 🔗 **分享链接**：一键生成全部学员查看链接，单条 / 全量复制
 
@@ -158,6 +159,7 @@ git push -u origin main
 | POST | `/api/schedule-add` | 是 | 新增单条排课（校验学员存在） |
 | POST | `/api/schedule-add-batch` | 是 | 批量新增排课（日期×学员笛卡尔积） |
 | PUT | `/api/schedule-update` | 是 | 修改排课（含跨月/跨学员迁移） |
+| PUT | `/api/schedule-attendance` | 是 | 批量设置点名状态（到课/缺勤/清除标记，单次最多 100 条） |
 | DELETE | `/api/schedule-delete` | 是 | 删除单条排课 |
 | POST | `/api/auth` | 否 | 登录，返回 token |
 | GET | `/api/auth` | 是 | 校验 token 有效性 |
@@ -206,6 +208,7 @@ git push -u origin main
 | `endTime` | string | 是（新增） | 结束时间，格式 `HH:mm`；历史数据可能为空串 |
 | `note` | string | 否 | 备注 |
 | `color` | string | 否 | 颜色标签 key，从课程带过来 |
+| `attendance` | string | 否 | 点名状态：`attended`=到课 / `absent`=缺勤；字段缺省视为未点名（含历史数据） |
 
 **按月分文件存储设计**：
 - 路径 `schedules/{studentId}/{yyyy-MM}.json`，单次读写仅涉及单月文件
@@ -257,6 +260,7 @@ pai/
 │   │   ├── h-schedule-add.js        # 新增排课业务逻辑
 │   │   ├── h-schedule-add-batch.js  # 批量排课业务逻辑
 │   │   ├── h-schedule-update.js     # 修改排课业务逻辑
+│   │   ├── h-schedule-attendance.js # 点名业务逻辑
 │   │   ├── h-schedule-delete.js     # 删除排课业务逻辑
 │   │   └── h-announcement.js        # 公告业务逻辑
 │   └── api/                         # 薄路由层（业务逻辑在 _lib/h-*），mcp.js 入口
@@ -275,6 +279,7 @@ pai/
 │       ├── schedule-add.js          # 新增单条排课
 │       ├── schedule-add-batch.js    # 批量新增排课
 │       ├── schedule-update.js      # 修改排课(含迁移)
+│       ├── schedule-attendance.js # 点名(批量设置到课状态)
 │       ├── schedule-delete.js      # 删除排课
 │       └── mcp.js                  # 云端 MCP Server(Streamable HTTP 无状态)
 ├── src/                             # 前端源码
@@ -290,6 +295,7 @@ pai/
 │   │   │   ├── ScheduleAdmin.tsx    # 排课管理
 │   │   │   ├── ScheduleAddModal.tsx # 批量新增排课
 │   │   │   ├── ScheduleEditor.tsx   # 排课编辑弹窗
+│   │   │   ├── AttendanceAdmin.tsx  # 点名管理
 │   │   │   ├── AnnouncementAdmin.tsx# 公告管理
 │   │   │   └── ShareLinksAdmin.tsx  # 分享链接
 │   │   ├── Announcement/
@@ -352,7 +358,7 @@ pai/
 
 也支持 `Authorization: Bearer <管理员密码>` 请求头。仅配置 URL 不配置密码时，只有只读工具可用，可先以此测试连通性；密码错误时写工具会返回明确报错，只读工具不受影响。
 
-### 可用工具（16 个）
+### 可用工具（17 个）
 
 | 工具 | 说明 |
 |------|------|
@@ -364,6 +370,7 @@ pai/
 | `add_schedule` | 新增单条排课（时间必填；同学员同日同时段同课程重复时拒绝写入） |
 | `batch_add_schedules` | 批量新增排课（日期×学员笛卡尔积，同学员同日同时段同课程自动去重跳过；时间缺省取课程默认时段） |
 | `update_schedule` | 修改排课（含跨月/跨学员迁移） |
+| `set_attendance` | 点名：设置排课到课状态（attended=到课 / absent=缺勤 / none=清除标记回到未点名） |
 | `delete_schedule` | 删除单条排课（需显式 `confirm=true`） |
 | `add_student` | 新增学员 |
 | `update_student` | 更新学员 |

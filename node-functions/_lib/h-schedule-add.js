@@ -73,6 +73,9 @@ export async function handleScheduleAdd(context) {
       )
     }
 
+    // 新增排课一律从「未点名」开始：剥离客户端可能传入的 attendance
+    delete schedule.attendance
+
     // 自动补全 studentName 与 courseName；id 由服务端自动生成
     const finalSchedule = {
       ...schedule,

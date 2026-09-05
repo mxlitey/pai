@@ -619,6 +619,53 @@ export async function deleteSchedule(scheduleId, studentId, date) {
   })
 }
 
+// 批量设置排课点名状态
+// updates: [{ id, studentId, date, attendance }]，attendance: 'attended' | 'absent' | 'none'（none 清除标记，回到未点名）
+// 记录不存在不报错，计入 notFound（部分成功语义）；同批重复 id 后者覆盖前者
+// 按 学员+月份 分组加锁，每组一次读改写；返回 { updatedCount, notFound }
+export async function setScheduleAttendance(updates) {
+  if (!Array.isArray(updates) || updates.length === 0) throw new Error('updates 不能为空')
+  for (const u of updates) {
+    if (!u || typeof u !== 'object') throw new Error('updates 项需为非空对象')
+    validateStorageId(u.id, 'id')
+    validateStorageId(u.studentId, 'studentId')
+    validateDate(u.date, 'date')
+    if (!['attended', 'absent', 'none'].includes(u.attendance)) {
+      throw new Error('attendance 取值应为 attended / absent / none')
+    }
+  }
+  // 按 学员+月份 分组，减少重复读写
+  const groups = new Map() // key: `${studentId}|${month}`
+  for (const u of updates) {
+    const key = `${u.studentId}|${u.date.slice(0, 7)}`
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(u)
+  }
+  const lockKeys = [...groups.keys()].map((k) => `schedule:${k.split('|')[0]}:${k.split('|')[1]}`)
+  return withWriteLocks(lockKeys, async () => {
+    let updatedCount = 0
+    const notFound = []
+    for (const [key, groupUpdates] of groups) {
+      const [studentId, month] = key.split('|')
+      const list = await getSchedulesByMonth(studentId, month)
+      let changed = false
+      for (const u of groupUpdates) {
+        const idx = list.findIndex((s) => s.id === u.id)
+        if (idx === -1) {
+          notFound.push({ id: u.id, studentId: u.studentId, date: u.date })
+          continue
+        }
+        if (u.attendance === 'none') delete list[idx].attendance
+        else list[idx].attendance = u.attendance
+        updatedCount++
+        changed = true
+      }
+      if (changed) await saveSchedulesByMonth(studentId, month, list)
+    }
+    return { updatedCount, notFound }
+  })
+}
+
 // 删除学员及其所有排课数据
 // 1. 列出并删除该学员的所有月份排课文件
 // 2. 从 students/index.json 中移除该学员
