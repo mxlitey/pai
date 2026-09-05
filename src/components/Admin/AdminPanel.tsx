@@ -615,7 +615,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
                 点名管理
               </h2>
               <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                按日期点名，三态标记到课/缺勤
+                查看和管理点名状态
               </div>
             </div>
             <button
