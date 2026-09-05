@@ -265,7 +265,7 @@ export async function batchAddSchedules(schedules) {
           skipped++
           continue
         }
-        existing.push({ ...s, id })
+        existing.push({ ...stripScheduleDenorm(s), id })
         existingIds.add(id)
         usedIds.add(id)
         existingBizKeys.add(bizKey)
@@ -306,44 +306,19 @@ export async function addStudent(student) {
 }
 
 // 更新学员信息（按 id 定位）
-// 若姓名变更，级联更新该学员所有排课中的 studentName，保证列表显示一致
-// 返回 { updated, notFound, nameChanged, updatedScheduleFiles }
+// 排课中已不冗余存储 studentName，因此无需级联更新排课文件
+// 返回 { updated, notFound }
 export async function updateStudent(student) {
   validateStorageId(student?.id, 'student.id')
-  // 涉及 students + schedules，按字典序加锁避免死锁
   return withWriteLocks(['schedules', 'students'], async () => {
     const students = await getStudents()
     const idx = students.findIndex((s) => s.id === student.id)
     if (idx === -1) {
-      return { updated: false, notFound: true, nameChanged: false, updatedScheduleFiles: 0 }
+      return { updated: false, notFound: true }
     }
-    const oldName = students[idx].name
     students[idx] = { ...student }
     await saveStudents(students)
-
-    // 姓名未变更：无需级联
-    if (oldName === student.name) {
-      return { updated: true, notFound: false, nameChanged: false, updatedScheduleFiles: 0 }
-    }
-
-    // 姓名变更：扫描该学员所有月份排课，更新 studentName
-    let updatedScheduleFiles = 0
-    const months = await listScheduleMonths(student.id)
-    for (const month of months) {
-      const list = await getSchedulesByMonth(student.id, month)
-      let changed = false
-      for (const s of list) {
-        if (s.studentId === student.id && s.studentName !== student.name) {
-          s.studentName = student.name
-          changed = true
-        }
-      }
-      if (changed) {
-        await saveSchedulesByMonth(student.id, month, list)
-        updatedScheduleFiles++
-      }
-    }
-    return { updated: true, notFound: false, nameChanged: true, updatedScheduleFiles }
+    return { updated: true, notFound: false }
   })
 }
 
@@ -388,13 +363,14 @@ export async function listScheduleMonths(studentId) {
 }
 
 // 按学员ID读取所有排课（遍历所有月份）
+// 对外读入口：返回前 join 拼回 studentName/courseName/color
 export async function getAllSchedulesByStudent(studentId) {
   validateStorageId(studentId, 'studentId')
   const months = await listScheduleMonths(studentId)
   const results = await Promise.all(
     months.map((m) => getSchedulesByMonth(studentId, m))
   )
-  return results.flat()
+  return augmentScheduleDetails(results.flat())
 }
 
 // 按学员ID+日期范围读取排课
@@ -449,7 +425,8 @@ export async function searchSchedules({ startDate, endDate, courseId, studentId 
     return (a.startTime || '').localeCompare(b.startTime || '')
   })
 
-  return all
+  // 对外读入口：join 拼回排课显示所需字段
+  return augmentScheduleDetails(all)
 }
 
 // 枚举 startDate..endDate 之间的所有 yyyy-MM（闭区间）
@@ -530,7 +507,7 @@ export async function updateSchedule(oldSchedule, newSchedule) {
       const list = await getSchedulesByMonth(oldStudentId, oldMonth)
       const idx = list.findIndex((s) => s.id === newSchedule.id)
       if (idx === -1) throw new Error('未找到原排课记录')
-      list[idx] = { ...newSchedule }
+      list[idx] = { ...stripScheduleDenorm(newSchedule) }
       await saveSchedulesByMonth(oldStudentId, oldMonth, list)
       return { moved: false, fromKey: oldKey, toKey: newKey }
     }
@@ -550,7 +527,7 @@ export async function updateSchedule(oldSchedule, newSchedule) {
     const newList = await getSchedulesByMonth(newStudentId, newMonth)
     // 去重保护：若新文件已存在同 id 记录则覆盖
     const filteredNew = newList.filter((s) => s.id !== newSchedule.id)
-    filteredNew.push({ ...newSchedule })
+    filteredNew.push({ ...stripScheduleDenorm(newSchedule) })
     // 按日期+时间排序
     filteredNew.sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date)
@@ -591,7 +568,7 @@ export async function addSchedule(schedule) {
       return { created: false, key, exists: false, duplicate: true, existing: dup }
     }
 
-    list.push({ ...schedule })
+    list.push({ ...stripScheduleDenorm(schedule) })
     // 按日期+时间排序
     list.sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date)
@@ -655,6 +632,8 @@ export async function setScheduleAttendance(updates) {
           notFound.push({ id: u.id, studentId: u.studentId, date: u.date })
           continue
         }
+        // 剥离旧记录的反范式字段（存量自然覆盖）；'none' 清除点名标记
+        list[idx] = { ...stripScheduleDenorm(list[idx]) }
         if (u.attendance === 'none') delete list[idx].attendance
         else list[idx].attendance = u.attendance
         updatedCount++
@@ -663,6 +642,37 @@ export async function setScheduleAttendance(updates) {
       if (changed) await saveSchedulesByMonth(studentId, month, list)
     }
     return { updatedCount, notFound }
+  })
+}
+
+// 剥离排课记录的反范式派生字段（studentName / courseName / color）
+// 这些字段不再写入存储，仅由 read 时的 join 拼回；剥离后落盘保持存储最小化
+function stripScheduleDenorm(s) {
+  if (!s || typeof s !== 'object') return s
+  const copy = { ...s }
+  delete copy.studentName
+  delete copy.courseName
+  delete copy.color
+  return copy
+}
+
+// 对外读入口的 join 拼回：为排课记录补上 studentName / courseName / color
+// 优先使用当前 students / courses 表中的值（一致性优先，覆盖存储中的过期值），
+// 找不到则课程名/姓名取空、颜色取兜底 slate
+export async function augmentScheduleDetails(schedules) {
+  if (!Array.isArray(schedules) || schedules.length === 0) return schedules
+  const [students, courses] = await Promise.all([getStudents(), getCourses()])
+  const studentMap = new Map(students.map((s) => [s.id, s.name]))
+  const courseMap = new Map(courses.map((c) => [c.id, c]))
+  return schedules.map((s) => {
+    const stu = studentMap.get(s.studentId)
+    const course = courseMap.get(s.courseId)
+    return {
+      ...s,
+      studentName: stu ?? s.studentName ?? '',
+      courseName: course?.name ?? s.courseName ?? '',
+      color: course?.color ?? s.color ?? 'slate',
+    }
   })
 }
 

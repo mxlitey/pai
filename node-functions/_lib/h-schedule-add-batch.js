@@ -75,8 +75,6 @@ export async function handleScheduleAddBatch(context) {
       )
     }
     const finalCourseName = course.name
-    const finalColor = color || course.color || ''
-
     // 校验学员是否存在，并构建 id->name 映射
     const students = await getStudents()
     const studentMap = new Map(students.map((s) => [s.id, s]))
@@ -93,23 +91,20 @@ export async function handleScheduleAddBatch(context) {
     const usedIds = new Set() // 请求内去重，确保生成的 id 绝对不重复
     for (const date of dates) {
       for (const sid of studentIds) {
-        const student = studentMap.get(sid)
         let id
         do {
           id = genScheduleId()
         } while (usedIds.has(id))
         usedIds.add(id)
+        // studentName/courseName/color 不再冗余存储，读取时由后端 join 拼回
         schedules.push({
           id,
           studentId: sid,
-          studentName: student.name,
           courseId,
-          courseName: finalCourseName,
           date,
           startTime,
           endTime,
           note: note || '',
-          color: finalColor,
         })
       }
     }

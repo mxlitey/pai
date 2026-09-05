@@ -76,13 +76,10 @@ export async function handleScheduleAdd(context) {
     // 新增排课一律从「未点名」开始：剥离客户端可能传入的 attendance
     delete schedule.attendance
 
-    // 自动补全 studentName 与 courseName；id 由服务端自动生成
+    // id 由服务端自动生成；studentName/courseName/color 不再冗余存储，读取时由后端 join 拼回
     const finalSchedule = {
       ...schedule,
       id: genScheduleId(),
-      studentName: schedule.studentName || students.find((s) => s.id === schedule.studentId)?.name || '',
-      courseName: course.name,
-      color: schedule.color || course.color || '',
       startTime: schedule.startTime,
       endTime: schedule.endTime,
       note: schedule.note || '',

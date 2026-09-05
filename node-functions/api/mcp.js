@@ -143,14 +143,14 @@ const scheduleSchema = {
   properties: {
     id: { type: 'string', description: '排课记录唯一 ID（新增时可留空由系统生成；更新时必填）' },
     studentId: studentIdSchema,
-    studentName: { type: 'string', description: '学员姓名（新增时缺省由后端按 studentId 自动补全）' },
-    courseId: { type: 'string', description: '关联课程 ID（新增时必填且须存在于课程表；courseName 由后端根据 courseId 自动补全）' },
-    courseName: { type: 'string', description: '课程名称（后端根据 courseId 自动补全，不采信传入值）' },
+    studentName: { type: 'string', description: '学员姓名（不再存储于排课：读取排课时由后端按 studentId 自动 join 返回；写入排课时可不传）' },
+    courseId: { type: 'string', description: '关联课程 ID（新增时必填且须存在于课程表；读取排课时 courseName 由后端根据 courseId 自动 join 返回）' },
+    courseName: { type: 'string', description: '课程名称（不再存储于排课：读取排课时由后端根据 courseId join 返回，不采信写入值）' },
     date: dateSchema,
     startTime: { type: 'string', description: '开始时间 HH:mm（新增时必填；历史数据可能为空串）' },
     endTime: { type: 'string', description: '结束时间 HH:mm（新增时必填；历史数据可能为空串）' },
     note: { type: 'string', description: '备注' },
-    color: { type: 'string', description: '颜色标签 key，如 blue/green（通常从课程继承）' },
+    color: { type: 'string', description: '颜色标签 key，如 blue/green（不再存储于排课：读取排课时由后端按课程 join 返回）' },
   },
   required: ['studentId', 'courseId', 'date', 'startTime', 'endTime'],
 }
@@ -263,7 +263,7 @@ const TOOLS = [
     name: 'batch_add_schedules',
     title: '批量排课（多学员 × 多日期）',
     description:
-      '为多个学员在多个日期批量排同一门课（dates × studentIds 笛卡尔积）。courseName 由后端根据 courseId 自动补全；startTime/endTime 缺省时自动取课程默认上下课时间（课程未配置默认时间则报错）。业务级去重：同学员同日同时段同课程已存在时自动跳过并计入 skipped。需管理密码。',
+      '为多个学员在多个日期批量排同一门课（dates × studentIds 笛卡尔积）。startTime/endTime 缺省时自动取课程默认上下课时间（课程未配置默认时间则报错）；courseName/color 不存储于排课，读取时由后端按 courseId join 返回。业务级去重：同学员同日同时段同课程已存在时自动跳过并计入 skipped。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -271,7 +271,7 @@ const TOOLS = [
         dates: { type: 'array', items: dateSchema, minItems: 1, description: '日期列表，每个 yyyy-MM-dd' },
         startTime: { ...timeSchema, description: '开始时间 HH:mm（缺省自动用课程默认时间）' },
         endTime: { ...timeSchema, description: '结束时间 HH:mm（缺省自动用课程默认时间）' },
-        color: { type: 'string', description: '颜色标签 key（缺省取课程颜色）' },
+        color: { type: 'string', description: '颜色标签 key（已废弃：不再存储于排课，读取时按课程 join 返回；传入将忽略）' },
         note: { type: 'string', description: '备注' },
         studentIds: { type: 'array', items: studentIdSchema, minItems: 1, description: '学员 ID 列表' },
       },
@@ -280,7 +280,7 @@ const TOOLS = [
     handler: async (a, ctx) => {
       needToken(ctx)
       const body = { ...a }
-      // startTime/endTime 缺省时从课程默认时间补齐（courseName/color 后端自动补全）
+      // startTime/endTime 缺省时从课程默认时间补齐（courseName/color 不存储，读取时 join 返回）
       if (body.courseId && (!body.startTime || !body.endTime)) {
         const coursesResult = await callApi(coursesApi, { path: '/api/courses' }, ctx)
         if (coursesResult.code === 0) {
@@ -418,7 +418,7 @@ const TOOLS = [
     name: 'update_student',
     title: '更新学员',
     description:
-      '更新学员信息（按 id 定位）。若姓名变更，后端会级联更新该学员所有排课中的 studentName。需管理密码。',
+      '更新学员信息（按 id 定位）。排课中已不冗余存储 studentName，改姓名后所有排课在读取时会自动反映新姓名，无需级联。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -488,7 +488,7 @@ const TOOLS = [
     name: 'update_course',
     title: '更新课程',
     description:
-      '更新课程信息（按 id 定位）。默认上下课时间为必填；不会级联更新已有排课记录中的 courseName。需管理密码。',
+      '更新课程信息（按 id 定位）。默认上下课时间为必填；排课中已不冗余存储 courseName/color，改课程后所有排课读取时自动反映新名称与颜色。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {
