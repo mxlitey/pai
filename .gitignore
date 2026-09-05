@@ -9,3 +9,4 @@ test-files/
 .trae-html-share-packages/
 .verify-test/
 .trae/mcp.json
+.trae/documents/

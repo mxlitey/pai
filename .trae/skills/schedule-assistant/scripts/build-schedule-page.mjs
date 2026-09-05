@@ -127,7 +127,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
         if (status === 'attended') {
           marks.push(`<span class="mark" data-course="${escAttr(cn)}" style="background:${m.fill};border:0.5px solid ${m.stroke};border-radius:4px;padding:0 3px;font-size:12px;line-height:1.5;color:${m.stroke};">●</span>`)
         } else if (status === 'absent') {
-          marks.push(`<span class="mark" data-course="${escAttr(cn)}" style="color:#A32D2D;font-size:14px;">✕</span>`)
+          marks.push(`<span class="mark" data-course="${escAttr(cn)}" style="color:${m.stroke};font-size:14px;">✕</span>`)
         } else {
           marks.push(`<span class="mark" data-course="${escAttr(cn)}" style="color:${m.stroke};font-size:14px;">●</span>`)
         }
