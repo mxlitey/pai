@@ -13,6 +13,9 @@ export interface Course {
   defaultEndTime?: string // HH:mm
 }
 
+// 点名状态：attended=到课 / absent=缺勤；未点名不存值（attendance 字段缺省，含历史数据）
+export type AttendanceStatus = 'attended' | 'absent'
+
 // 排课记录
 export interface Schedule {
   id: string
@@ -25,6 +28,15 @@ export interface Schedule {
   endTime: string // HH:mm
   note?: string
   color?: string // 从课程带过来的颜色标签 key
+  attendance?: AttendanceStatus // 点名状态：attended=到课 / absent=缺勤；缺省 = 未点名
+}
+
+// 点名更新项（API 请求体）；'none' 表示清除标记，回到未点名
+export interface AttendanceUpdate {
+  id: string
+  studentId: string
+  date: string
+  attendance: AttendanceStatus | 'none'
 }
 
 // 日历视图模式

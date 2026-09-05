@@ -242,7 +242,7 @@ function alignTo5Min(time: string): string {
 }
 
 // 从 "HH:mm" 中拆出小时与分钟（无值时返回空串）
-function splitTime(time: string): { h: string; m: string } {
+function splitTime(time?: string): { h: string; m: string } {
   if (!time || !/^\d{2}:\d{2}$/.test(time)) return { h: '', m: '' }
   const [h, m] = time.split(':')
   return { h, m }

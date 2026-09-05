@@ -1,6 +1,6 @@
 // 后台管理 API 调用层 —— 直接请求后端 Edge Functions
 // 所有管理类请求需携带登录 token（Authorization: Bearer <token>）
-import type { Schedule, Student, Course } from '@/types'
+import type { Schedule, Student, Course, AttendanceUpdate } from '@/types'
 
 const API_BASE = '/api'
 const TOKEN_KEY = 'admin_token'
@@ -155,6 +155,17 @@ export async function deleteSchedule(
   return request(`${API_BASE}/schedule-delete`, {
     method: 'DELETE',
     body: JSON.stringify({ id, studentId, date }),
+  })
+}
+
+// 批量设置点名状态（单个点名传长度 1 的数组；「全部到课」传整个时段的数组）
+// 记录不存在不报错，计入返回的 notFound（部分成功语义）
+export async function setAttendanceBatch(
+  updates: AttendanceUpdate[],
+): Promise<ApiResult<{ updatedCount: number; notFound: { id: string; studentId: string; date: string }[] }>> {
+  return request(`${API_BASE}/schedule-attendance`, {
+    method: 'PUT',
+    body: JSON.stringify({ updates }),
   })
 }
 

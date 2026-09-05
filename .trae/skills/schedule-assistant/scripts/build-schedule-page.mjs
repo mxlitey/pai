@@ -6,7 +6,7 @@
 //   JSON 格式：{ "schedules": [...排课记录], "courses": [...课程列表] }
 //   来源：--data <文件路径>，或 stdin 管道；HTML 输出到当前工作目录
 //
-// 考勤矩阵：到课 ●；该班型有课但该学员无排课记录 → 空心红圈 ○（预测有课）。
+// 考勤矩阵（真实点名数据 attendance 字段）：到课 ● 班型色+浅色底；缺勤 ✕ 红；未点名 ● 班型色无底（旧数据无 attendance 字段按未点名）；无排课 -。
 import { writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -58,12 +58,6 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     return `${+m}/${+dd} ${WEEKDAYS[new Date(`${d}T00:00:00`).getDay()]}`
   }
 
-  // 每个班型的完整上课日期集合
-  const datesOfCourse = {}
-  for (const cn of courseOrder) {
-    datesOfCourse[cn] = new Set(schedules.filter((s) => s.courseName === cn).map((s) => s.date))
-  }
-
   // 学员按班型顺序、再按首次出现顺序排列
   const studentList = []
   for (const cn of courseOrder) {
@@ -74,28 +68,20 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     }
   }
 
-  // 学员实际报名的全部课程（一个学员可报多门），按班型顺序排列
-  const coursesOf = {}
+  // 每个学员的排课按（班型, 日期）聚合出真实点名状态
+  // attendance 字段：'attended'=到课 / 'absent'=缺勤 / 缺省或其他值=未点名（旧数据无此字段，兼容为未点名）
+  // 同班型同日多条记录（如补课双时段）：聚合优先级 到课 > 缺勤 > 未点名
+  const STATUS_RANK = { pending: 0, absent: 1, attended: 2 }
+  const attendanceOf = {}
   for (const st of studentList) {
-    coursesOf[st.name] = courseOrder.filter((cn) =>
-      schedules.some((s) => s.studentName === st.name && s.courseName === cn))
-  }
-
-  // 到课精确到（课程, 日期）：同一天一门到、一门缺不会误判为全到
-  const attendedOf = {}
-  for (const st of studentList) {
-    attendedOf[st.name] = new Set(
-      schedules.filter((s) => s.studentName === st.name).map((s) => `${s.courseName}|${s.date}`))
-  }
-
-  // 应排按学员全部课程累计（同一天上两门课各计 1 次，不按日期去重）
-  const dueOf = {}
-  for (const st of studentList) {
-    let due = 0
-    for (const cn of coursesOf[st.name]) {
-      due += datesOfCourse[cn].size
+    const m = new Map()
+    for (const s of schedules) {
+      if (s.studentName !== st.name) continue
+      const status = s.attendance === 'attended' ? 'attended' : s.attendance === 'absent' ? 'absent' : 'pending'
+      const key = `${s.courseName}|${s.date}`
+      if (!m.has(key) || STATUS_RANK[status] > STATUS_RANK[m.get(key)]) m.set(key, status)
     }
-    dueOf[st.name] = due
+    attendanceOf[st.name] = m
   }
 
   const today = new Date()
@@ -131,24 +117,32 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   }).join('\n')
 
   const matrixRows = studentList.map((st) => {
-    // 每门课当天独立渲染：到课 ●（该课颜色）；该班型有课但该学员无排课记录 → 空心红圈 ○（预测有课）；同日多课并排显示
+    // 每门课当天独立渲染真实点名状态：到课 ● 班型色+浅色底；缺勤 ✕ 红；未点名 ● 班型色无底；同日多课并排显示
     const cells = dates.map((d) => {
-      const coursesOnDay = coursesOf[st.name].filter((cn) => datesOfCourse[cn].has(d))
-      if (!coursesOnDay.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">-</td>`
-      const marks = coursesOnDay
-        .map((cn) => attendedOf[st.name].has(`${cn}|${d}`)
-          ? `<span class="mark" data-course="${escAttr(cn)}" style="color:${courseMeta[cn].stroke};font-size:14px;">●</span>`
-          : `<span class="mark" data-course="${escAttr(cn)}" style="color:#A32D2D;font-size:14px;">○</span>`)
+      const marks = []
+      for (const cn of courseOrder) {
+        const status = attendanceOf[st.name].get(`${cn}|${d}`)
+        if (!status) continue
+        const m = courseMeta[cn]
+        if (status === 'attended') {
+          marks.push(`<span class="mark" data-course="${escAttr(cn)}" style="background:${m.fill};border:0.5px solid ${m.stroke};border-radius:4px;padding:0 3px;font-size:12px;line-height:1.5;color:${m.stroke};">●</span>`)
+        } else if (status === 'absent') {
+          marks.push(`<span class="mark" data-course="${escAttr(cn)}" style="color:#A32D2D;font-size:14px;">✕</span>`)
+        } else {
+          marks.push(`<span class="mark" data-course="${escAttr(cn)}" style="color:${m.stroke};font-size:14px;">●</span>`)
+        }
+      }
+      if (!marks.length) return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;color:#DDDAD2;">-</td>`
       return `<td style="text-align:center;padding:7px 4px;border-bottom:1px solid #F2F1EC;">
         <div style="display:flex;justify-content:center;gap:3px;white-space:nowrap;">${marks.join('')}</div>
       </td>`
     }).join('')
-    const total = dueOf[st.name]
-    const attended = attendedOf[st.name].size
+    const cnt = { attended: 0, absent: 0, pending: 0 }
+    for (const v of attendanceOf[st.name].values()) cnt[v]++
     return `<tr>
     <td style="padding:7px 10px 7px 14px;border-bottom:1px solid #F2F1EC;white-space:nowrap;">${st.name}</td>
     ${cells}
-    <td style="text-align:center;padding:7px 14px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${attended}/${total}</td>
+    <td style="text-align:center;padding:7px 14px;border-bottom:1px solid #F2F1EC;color:#7A7973;font-size:12px;white-space:nowrap;">${cnt.attended}到·${cnt.absent}缺·${cnt.pending}未</td>
   </tr>`
   }).join('\n')
 
@@ -219,8 +213,10 @@ ${cards}
   <h2>考勤矩阵</h2>
   <div class="legend">
 ${courseOrder.map((cn) => `<span class="legend-course" data-course="${escAttr(cn)}" title="点击高亮该班型标识，再次点击恢复"><i class="dot" style="background:${courseMeta[cn].stroke}"></i>${cn}</span>`).join('\n')}
+    <span><span style="display:inline-block;background:#EFEFEA;border:0.5px solid #DDDAD2;border-radius:4px;padding:0 3px;font-size:12px;line-height:1.5;color:#5F5E5A;">●</span> 到课</span>
+    <span style="color:#A32D2D;">✕ 缺勤</span>
+    <span style="color:#7A7973;">● 未点名</span>
     <span style="color:#A9A79F;">- 无课</span>
-    <span style="color:#A32D2D;">○ 预测有课</span>
   </div>
   <div style="overflow-x:auto;border-radius:12px;">
   <table>
@@ -263,7 +259,7 @@ ${matrixRows}
       refresh()
     })
   })
-  // 点击表格里的标识（●/○）等价于点击对应班型徽章
+  // 点击表格里的标识（●/✕）等价于点击对应班型徽章
   marks.forEach(function (m) {
     m.addEventListener('click', function (ev) {
       ev.stopPropagation()

@@ -4,6 +4,7 @@ import { deleteSchedule, searchSchedules } from '@/api/admin'
 import { SearchBar } from '@/components/SearchBar'
 import { ScheduleEditor } from './ScheduleEditor'
 import { ScheduleAddModal } from './ScheduleAddModal'
+import { cn } from '@/utils/cn'
 
 interface ScheduleAdminProps {
   students: Student[]
@@ -242,6 +243,7 @@ export function ScheduleAdmin({ students, courses, onBack, onToast, onRefreshStu
                     <th className="text-left py-2 px-2 font-medium">课程</th>
                     <th className="text-left py-2 px-2 font-medium">日期</th>
                     <th className="text-left py-2 px-2 font-medium">时间</th>
+                    <th className="text-left py-2 px-2 font-medium">状态</th>
                     <th className="text-right py-2 px-2 font-medium">操作</th>
                   </tr>
                 </thead>
@@ -264,6 +266,16 @@ export function ScheduleAdmin({ students, courses, onBack, onToast, onRefreshStu
                       <td className="py-2.5 px-2 text-slate-600">{s.date}</td>
                       <td className="py-2.5 px-2 text-slate-600">
                         {s.startTime}-{s.endTime}
+                      </td>
+                      <td className="py-2.5 px-2">
+                        <span
+                          className={cn(
+                            'inline-block rounded-full px-2 py-0.5 text-xs whitespace-nowrap',
+                            attendanceBadgeClass(s.attendance),
+                          )}
+                        >
+                          {attendanceBadgeText(s.attendance)}
+                        </span>
                       </td>
                       <td className="py-2.5 px-2 text-right whitespace-nowrap">
                         <button
@@ -311,4 +323,18 @@ export function ScheduleAdmin({ students, courses, onBack, onToast, onRefreshStu
       )}
     </div>
   )
+}
+
+// 点名状态徽章样式：到课=绿 / 缺勤=红 / 未点名=灰
+function attendanceBadgeClass(attendance?: Schedule['attendance']): string {
+  if (attendance === 'attended') return 'bg-green-100 text-green-700'
+  if (attendance === 'absent') return 'bg-rose-100 text-rose-700'
+  return 'bg-slate-100 text-slate-500'
+}
+
+// 点名状态文案：attendance 缺省视为未点名
+function attendanceBadgeText(attendance?: Schedule['attendance']): string {
+  if (attendance === 'attended') return '到课'
+  if (attendance === 'absent') return '缺勤'
+  return '未点名'
 }
