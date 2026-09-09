@@ -422,7 +422,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                   ref={headRef}
                   className="sticky top-[3.25rem] z-20 overflow-hidden rounded-t-lg bg-slate-50 shadow-[0_2px_4px_-1px_rgba(0,0,0,0.08)]"
                 >
-                  <table className="text-sm border-collapse table-fixed">
+                  <table className="w-full text-sm border-collapse table-fixed">
                     <thead>
                       <tr>
                         <th className="text-center text-xs font-medium text-slate-500 w-[112px] px-3.5 py-3 whitespace-nowrap sticky left-0 z-30 bg-slate-50 border-b border-slate-200 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
@@ -448,7 +448,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                 </div>
                 {/* 正文：随页面滚动（无缝衔接），横向滚动时同步表头 */}
                 <div ref={bodyRef} onScroll={onBodyScroll} className="overflow-x-auto">
-                  <table className="text-sm border-collapse table-fixed">
+                  <table className="w-full text-sm border-collapse table-fixed">
                     <tbody>
                       {studentList.map((st) => (
                         <tr key={st.name} className="border-t border-slate-100">
