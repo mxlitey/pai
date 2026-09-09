@@ -411,7 +411,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr>
-                      <th className="text-left text-xs font-medium text-slate-500 px-3.5 py-3 whitespace-nowrap">
+                      <th className="text-left text-xs font-medium text-slate-500 px-3.5 py-3 whitespace-nowrap sticky left-0 z-20 bg-slate-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
                         学员
                       </th>
                       {dates.map((d) => (
@@ -427,7 +427,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                   <tbody>
                     {studentList.map((st) => (
                       <tr key={st.name} className="border-t border-slate-100">
-                        <td className="px-3.5 py-2 text-slate-700 font-medium whitespace-nowrap">{st.name}</td>
+                        <td className="px-3.5 py-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 z-10 bg-white shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">{st.name}</td>
                         {dates.map((d) => {
                           const marks: React.ReactNode[] = []
                           for (const cn of courseOrder) {
