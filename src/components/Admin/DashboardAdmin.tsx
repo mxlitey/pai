@@ -4,6 +4,7 @@ import type { Course, Schedule } from '@/types'
 import { listCourses, searchSchedules } from '@/api/admin'
 import { formatDate, formatMonth } from '@/utils/date'
 import { cn } from '@/utils/cn'
+import { buildDashboardHtml } from '@/utils/dashboardHtml'
 
 interface DashboardAdminProps {
   onBack: () => void
@@ -202,6 +203,31 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
     [schedules, dates, studentList, courseOrder],
   )
 
+  // 下载当前筛选范围内的看板 HTML
+  const handleDownload = useCallback(() => {
+    if (!effectiveRange) {
+      onToast('info', '请先设置有效日期条件')
+      return
+    }
+    if (schedules.length === 0) {
+      onToast('info', '该范围暂无排课，无可下载内容')
+      return
+    }
+    const title = '排课总览'
+    const subtitle = `${effectiveRange.start} 至 ${effectiveRange.end}（排课 ${stats.records} 条 · 学员 ${stats.students} 人 · 班型 ${stats.courses} 个）`
+    const html = buildDashboardHtml({ schedules, courses, title, subtitle })
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `看板_${effectiveRange.start}_${effectiveRange.end}.html`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    onToast('success', `已下载看板 HTML（${effectiveRange.start} 至 ${effectiveRange.end}）`)
+  }, [effectiveRange, schedules, courses, stats, onToast])
+
   return (
     <div
       className="min-h-screen bg-slate-50"
@@ -228,6 +254,18 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
             <span className="text-slate-300">/</span>
             <h1 className="text-base font-semibold text-slate-800">看板数据</h1>
           </div>
+          {generated && schedules.length > 0 && (
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-colors"
+              title="将当前筛选范围内的看板导出为自包含 HTML 文件"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              下载 HTML
+            </button>
+          )}
         </div>
       </header>
 
