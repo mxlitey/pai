@@ -65,6 +65,82 @@ function readSubPageFromHash(): SubPage {
   }
 }
 
+// 后台首页入口图标（stroke 风格 SVG）
+function EntryGlyph({ d }: { d: string }) {
+  return (
+    <svg
+      className="w-6 h-6"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={d} />
+    </svg>
+  )
+}
+
+// 后台首页入口配置：数据驱动渲染，新增入口只需在此追加
+const HOME_ENTRIES: {
+  key: SubPage
+  title: string
+  desc: string
+  action: string
+  icon: string
+}[] = [
+  {
+    key: 'students',
+    title: '学员管理',
+    desc: '查看和管理学员数据',
+    action: '进入学员管理',
+    icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+  },
+  {
+    key: 'courses',
+    title: '课程管理',
+    desc: '查看和管理课程数据',
+    action: '进入课程管理',
+    icon: 'M12 6.253v13m0-13C10 5.006 7.728 4 5 4c-.708 0-1.37.126-2 .367v13.266C4.63 17.126 5.292 17 6 17c2.728 0 5 1.006 7 2.253M12 6.253C14 5.006 16.272 4 19 4c.708 0 1.37.126 2 .367v13.266c-.63-.241-1.292-.367-2-.367-2.728 0-5 1.006-7 2.253',
+  },
+  {
+    key: 'schedules',
+    title: '排课管理',
+    desc: '查看和管理排课数据',
+    action: '进入排课管理',
+    icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+  },
+  {
+    key: 'attendance',
+    title: '点名管理',
+    desc: '查看和管理点名状态',
+    action: '进入点名管理',
+    icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+  },
+  {
+    key: 'announcement',
+    title: '公告管理',
+    desc: '查看和管理公告内容',
+    action: '进入公告管理',
+    icon: 'M3 10h18M7 15h2m4 0h4m-9-8h12a2 2 0 012 2v8a2 2 0 01-2 2H9a2 2 0 01-2-2V9a2 2 0 012-2z',
+  },
+  {
+    key: 'shareLinks',
+    title: '分享链接',
+    desc: '查看和生成分享链接',
+    action: '进入分享链接',
+    icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.38-4.727a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1',
+  },
+  {
+    key: 'dashboard',
+    title: '看板数据',
+    desc: '查看看板数据',
+    action: '进入看板数据',
+    icon: 'M3 13h4v8H3v-8zm7-9h4v17h-4V4zm7 5h4v12h-4V9z',
+  },
+]
+
 // 写入子页面到 URL hash：#admin 或 #admin/students
 function writeSubPageToHash(sub: SubPage) {
   try {
@@ -558,156 +634,51 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
         </div>
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* 学员管理入口 */}
-        <section className="card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <span className="w-1 h-4 bg-brand-500 rounded"></span>
-                学员管理
-              </h2>
-              <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                查看和管理学员数据
-              </div>
-            </div>
-            <button
-              onClick={() => goSubPage('students')}
-              className="btn-primary text-sm py-1.5 px-3"
-            >
-              进入学员管理 →
-            </button>
-          </div>
-        </section>
-
-        {/* 课程管理入口 */}
-        <section className="card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <span className="w-1 h-4 bg-brand-500 rounded"></span>
-                课程管理
-              </h2>
-              <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                查看和管理课程数据
-              </div>
-            </div>
-            <button
-              onClick={() => goSubPage('courses')}
-              className="btn-primary text-sm py-1.5 px-3"
-            >
-              进入课程管理 →
-            </button>
-          </div>
-        </section>
-
-        {/* 排课管理入口 */}
-        <section className="card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <span className="w-1 h-4 bg-brand-500 rounded"></span>
-                排课管理
-              </h2>
-              <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                查看和管理排课数据
-              </div>
-            </div>
-            <button
-              onClick={() => goSubPage('schedules')}
-              className="btn-primary text-sm py-1.5 px-3"
-            >
-              进入排课管理 →
-            </button>
-          </div>
-        </section>
-
-        {/* 点名管理入口 */}
-        <section className="card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <span className="w-1 h-4 bg-brand-500 rounded"></span>
-                点名管理
-              </h2>
-              <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                查看和管理点名状态
-              </div>
-            </div>
-            <button
-              onClick={() => goSubPage('attendance')}
-              className="btn-primary text-sm py-1.5 px-3"
-            >
-              进入点名管理 →
-            </button>
-          </div>
-        </section>
-
-        {/* 公告管理入口 */}
-        <section className="card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <span className="w-1 h-4 bg-brand-500 rounded"></span>
-                公告管理
-              </h2>
-              <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                查看和管理公告内容
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                handleLoadAnnouncement()
-                goSubPage('announcement')
-              }}
-              className="btn-primary text-sm py-1.5 px-3"
-            >
-              进入公告管理 →
-            </button>
-          </div>
-        </section>
-
-        {/* 分享链接入口 */}
-        <section className="card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <span className="w-1 h-4 bg-brand-500 rounded"></span>
-                分享链接
-              </h2>
-              <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                查看和生成分享链接
-              </div>
-            </div>
-            <button
-              onClick={() => goSubPage('shareLinks')}
-              className="btn-primary text-sm py-1.5 px-3"
-            >
-              进入分享链接 →
-            </button>
-          </div>
-        </section>
-
-        {/* 数据看板入口 */}
-        <section className="card p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <span className="w-1 h-4 bg-brand-500 rounded"></span>
-                看板数据
-              </h2>
-              <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                查看看板数据
-              </div>
-            </div>
-            <button
-              onClick={() => goSubPage('dashboard')}
-              className="btn-primary text-sm py-1.5 px-3"
-            >
-              进入看板数据 →
-            </button>
-          </div>
-        </section>
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+        {/* 入口卡片：手机单列，平板两列，桌面三列 */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {HOME_ENTRIES.map((entry) => {
+            const { key, title, desc, action, icon } = entry
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => {
+                  // 公告页进入前需先加载当前公告内容
+                  if (key === 'announcement') handleLoadAnnouncement()
+                  goSubPage(key)
+                }}
+                className="card p-5 text-left group flex items-center gap-4 hover:shadow-md hover:shadow-slate-200 transition-shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500"
+              >
+                <span className="flex-none w-11 h-11 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center group-hover:bg-brand-100 transition-colors">
+                  <EntryGlyph d={icon} />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-base font-semibold text-slate-800">
+                    {title}
+                  </span>
+                  <span className="block text-xs text-slate-500 mt-0.5">
+                    {desc}
+                  </span>
+                </span>
+                <span className="flex-none text-brand-500 group-hover:translate-x-0.5 transition-transform">
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
+                <span className="sr-only">{action}</span>
+              </button>
+            )
+          })}
+        </div>
       </main>
     </div>
   )
