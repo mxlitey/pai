@@ -142,7 +142,6 @@ export function ShareLinksAdmin({ students, onBack }: ShareLinksAdminProps) {
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs">
                 <tr>
                   <th className="text-left py-2 px-4 font-medium">姓名</th>
-                  <th className="text-left py-2 px-4 font-medium">ID</th>
                   <th className="text-left py-2 px-4 font-medium">分享链接</th>
                   <th className="text-right py-2 px-4 font-medium">操作</th>
                 </tr>
@@ -152,9 +151,6 @@ export function ShareLinksAdmin({ students, onBack }: ShareLinksAdminProps) {
                   <tr key={s.id} className="hover:bg-slate-50/50">
                     <td className="py-2.5 px-4 font-medium text-slate-800 whitespace-nowrap">
                       {s.name}
-                    </td>
-                    <td className="py-2.5 px-4 text-slate-500 font-mono text-xs">
-                      {s.id}
                     </td>
                     <td className="py-2.5 px-4 text-slate-600 text-xs font-mono break-all">
                       {buildLink(s)}
@@ -180,9 +176,6 @@ export function ShareLinksAdmin({ students, onBack }: ShareLinksAdminProps) {
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-slate-800 truncate">
                         {s.name}
-                      </div>
-                      <div className="text-xs text-slate-400 font-mono truncate">
-                        {s.id}
                       </div>
                     </div>
                     <button
