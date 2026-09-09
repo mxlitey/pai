@@ -5,7 +5,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 # 排课助手（Schedule Assistant）
 
-通过云端 `pai-schedule` MCP server（`https://<域名>/api/mcp`，写操作需在请求头配置 `X-Admin-Password`）的 17 个工具管理排课日历系统。排课数据全部经 MCP 工具读写；签到表解析由本 skill 自带本地脚本完成。本文档定义字段规范、标准工作流与安全边界。
+通过云端 `pai-schedule` MCP server（`https://<域名>/api/mcp`，写操作需在请求头配置 `X-Admin-Password`）的 17 个工具管理排课日历系统。排课数据全部经 MCP 工具读写；签到表解析与看板渲染由本 skill 自带本地脚本完成。本文档定义字段规范、标准工作流与安全边界。
 
 ## 工具清单
 
@@ -75,7 +75,18 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 3. 返回 `notFound` 非空时告知"该排课已不存在（可能已被删除）"
 4. `search_schedules` 复核 attendance 字段
 
-### 6. 导入签到表（xlsx/docx）
+### 6. 生成排课看板（HTML 总览页）
+触发时机：**仅当用户明确要求**"看某月排课/看板/总览/导出排课表"时触发；**不在排课、点名等操作结束后自动生成**。
+1. `search_schedules({startDate: 月初, endDate: 月末})` + `list_courses()` 取当月排课与课程
+2. 用 Write 组装 JSON 文件 `{ "schedules": [...], "courses": [...] }`。可精简字段省 token：只留 `schedules[].studentName/courseName/date/startTime/endTime/attendance` 与 `courses[].name/color`，按 date 分段、每段按班型分组书写；写完校验「各日期分组条数相加 = 工具返回的 total」
+3. 执行本地脚本（先 `cd` 到目标工作目录，HTML 输出在 `process.cwd()`）：
+   `node <scripts>/build-schedule-page.mjs --month 2026-09 --data schedules-data.json`（也可管道 stdin 传入）
+   - `--out`/`--title` 覆盖输出文件名与主标题
+   - **不要传 `--title`**：默认标题与文件名均为「{yyyy}年{M}月排课看板」，仅当用户明确要求自定义时才覆盖
+4. 脚本输出统计摘要（条数/日期/学员/班型），如实转述；把 HTML 完整路径告知用户，可直接浏览器打开或打印
+5. 生成后删除临时 JSON 文件
+
+### 7. 导入签到表（xlsx/docx）
 1. 本地脚本解析（见「本地脚本」）→ 用 Read 读取解析结果
 2. `list_students` + `list_courses` 核对姓名与课程（课程不存在时先向用户确认命名再 `add_course`）
 3. 请假日期不排课或按用户要求处理
@@ -85,7 +96,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - 解析 docx 时注意：合并单元格的值只出现在首个单元格，后续行为空；"请假"标记在对应日期列
 - 不要自己写解析脚本；测试文件放 `test-files/`（已 gitignore，不会推送）
 
-### 7. 生成学员考勤表
+### 8. 生成学员考勤表
 用户说"我要张伟的考勤表""张伟出勤怎么样"：
 1. `list_students({q: "张伟"})` 确认学员 id（重名时向用户澄清）
 2. `get_schedules({studentId})` 拉取该学员全部排课记录（用户指定时间范围时传 `startDate`/`endDate`）
@@ -116,6 +127,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 位于本 SKILL.md 同目录的 `scripts/` 子目录（下称 `<scripts>`。Trae：`.trae/skills/schedule-assistant/scripts/`；WorkBuddy：`~/.workbuddy/skills/schedule-assistant/scripts/`；其他 agent 按实际安装目录定位，即 `<SKILL.md所在目录>/scripts/`）。用终端命令执行（Trae 用 RunCommand，其他 agent 用自带 Shell）。首次使用前 `cd <scripts> && npm install`；node 优先用当前环境版本。
 
 - `parse-docx.mjs <绝对路径>` / `parse-xlsx.mjs <绝对路径>` — 签到表解析，纯本地、不连后端，结果写入 `<scripts>/docx-parsed.txt` / `xlsx-parsed.txt`
+- `build-schedule-page.mjs` — 看板渲染，零依赖、可直接运行，数据经 JSON 文件或 stdin 传入（用法见工作流 6）
 
 ## 安全边界（强制）
 
@@ -131,6 +143,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - "该工具需要管理密码" → 告知用户只读操作可用，写操作需在 MCP 客户端请求头加 `X-Admin-Password`（值同后台登录密码）
 - "管理密码错误" → 检查 MCP 配置中的 `X-Admin-Password` 是否正确
 - 无法连接 MCP 端点 → 检查云端部署状态与 URL（`https://<域名>/api/mcp`）
+- 看板脚本报"未提供数据"/"数据缺少 schedules 数组" → 未传入或 JSON 格式不对，按工作流 6 先取数写入 JSON 再执行
 - `batch_add_schedules` 返回 errors → 逐条说明失败原因（如 id 碰撞），建议重试
 
 ## 历史数据说明
