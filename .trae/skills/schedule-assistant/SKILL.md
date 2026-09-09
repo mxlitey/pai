@@ -82,7 +82,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 2. 用 Write 组装 JSON 文件 `{ "schedules": [...], "courses": [...] }`。可精简字段省 token：只留 `schedules[].studentName/courseName/date/startTime/endTime/attendance` 与 `courses[].name/color`，按 date 分段、每段按班型分组书写；写完校验「各日期分组条数相加 = 工具返回的 total」
 3. 执行本地脚本（先 `cd` 到目标工作目录，HTML 输出在 `process.cwd()`）：
    `node <scripts>/build-schedule-page.mjs --month 2026-09 --data schedules-data.json`（也可管道 stdin 传入）
-   - `--makeup 2026-08-13,2026-08-28` 标记补课日期；`--out`/`--title` 覆盖输出文件名与主标题
+   - `--out`/`--title` 覆盖输出文件名与主标题
    - **不要传 `--title`**：默认标题与文件名均为「{yyyy}年{M}月排课看板」，仅当用户明确要求自定义时才覆盖
 4. 脚本输出统计摘要（条数/日期/学员/班型），如实转述；把 HTML 完整路径告知用户，可直接浏览器打开或打印
 5. 生成后删除临时 JSON 文件

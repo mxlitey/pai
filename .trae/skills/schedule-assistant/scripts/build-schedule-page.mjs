@@ -1,7 +1,7 @@
 // 排课总览页生成器（本地脚本，跨平台，纯渲染零配置）
 //
-// 渲染模块 renderSchedulePage({schedules, courses, month, makeup?, outFile?, titleOverride?})
-// CLI 用法：node build-schedule-page.mjs --month 2026-09 [--makeup 2026-08-13,2026-08-28] [--out 文件名.html] [--title 标题] (--data data.json | < data.json)
+// 渲染模块 renderSchedulePage({schedules, courses, month, outFile?, titleOverride?})
+// CLI 用法：node build-schedule-page.mjs --month 2026-09 [--out 文件名.html] [--title 标题] (--data data.json | < data.json)
 //   数据由调用方传入（AI 先通过云端 MCP 工具 search_schedules / list_courses 获取后写入 JSON 文件），
 //   JSON 格式：{ "schedules": [...排课记录], "courses": [...课程列表] }
 //   来源：--data <文件路径>，或 stdin 管道；HTML 输出到当前工作目录
@@ -12,8 +12,7 @@ import { join } from 'node:path'
 
 // ========== 渲染（纯函数：不取数，数据由调用方传入）==========
 // 返回 { file: 输出文件绝对路径, summary: 统计摘要文本 }
-export function renderSchedulePage({ schedules, courses, month, makeup = [], outFile, titleOverride }) {
-  const makeupSet = new Set(makeup)
+export function renderSchedulePage({ schedules, courses, month, outFile, titleOverride }) {
   const [year, mon] = month.split('-').map(Number)
 
   // ---------- 颜色 ----------
@@ -70,7 +69,7 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
 
   // 每个学员的排课按（班型, 日期）聚合出真实点名状态
   // attendance 字段：'attended'=到课 / 'absent'=缺勤 / 缺省或其他值=未点名（旧数据无此字段，兼容为未点名）
-  // 同班型同日多条记录（如补课双时段）：聚合优先级 到课 > 缺勤 > 未点名
+  // 同班型同日多条记录（如双时段加课）：聚合优先级 到课 > 缺勤 > 未点名
   const STATUS_RANK = { pending: 0, absent: 1, attended: 2 }
   const attendanceOf = {}
   for (const st of studentList) {
@@ -110,7 +109,6 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
     return `<div style="background:#fff;border:0.5px solid #E3E2DC;border-radius:12px;padding:14px 16px;">
     <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
       <span style="font-size:15px;font-weight:500;">${fmtDate(d)}</span>
-      ${makeupSet.has(d) ? '<span style="font-size:11px;color:#993C1D;background:#FAECE7;border-radius:5px;padding:1px 7px;">补课</span>' : ''}
     </div>
     ${blocks}
   </div>`
@@ -149,7 +147,6 @@ export function renderSchedulePage({ schedules, courses, month, makeup = [], out
   const title = titleOverride || `${year}年${mon}月排课看板`
   const mdFmt = (d) => { const [, m, dd] = d.split('-'); return `${+m}/${+dd}` }
   const subParts = [`共 ${dates.length} 天排课`]
-  if (makeupSet.size) subParts.push(`${[...makeupSet].sort().map(mdFmt).join(' 与 ')} 为补课`)
   subParts.push(`生成于 ${todayStr}`)
   const subtitle = subParts.join(' · ')
   const fileName = outFile || `${year}年${mon}月排课看板.html`
@@ -286,7 +283,7 @@ ${matrixRows}
   return { file, summary: summaryLines.join('\n') }
 }
 
-// ========== CLI 入口：node build-schedule-page.mjs --month 2026-09 [--data data.json | < data.json] [--makeup ...] [--out ...] [--title ...] ==========
+// ========== CLI 入口：node build-schedule-page.mjs --month 2026-09 [--data data.json | < data.json] [--out ...] [--title ...] ==========
 const isMain = process.argv[1] && (await import('node:url')).fileURLToPath(import.meta.url) === process.argv[1]
 if (isMain) {
   function arg(name) {
@@ -338,12 +335,10 @@ if (isMain) {
       console.log(`${month} 没有任何排课记录，未生成页面。`)
       process.exit(0)
     }
-    const makeup = (arg('makeup') || '').split(',').filter(Boolean)
     const { file, summary } = renderSchedulePage({
       schedules,
       courses,
       month,
-      makeup,
       outFile: arg('out'),
       titleOverride: arg('title'),
     })
