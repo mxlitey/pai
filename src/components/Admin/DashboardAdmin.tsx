@@ -129,21 +129,6 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
     [schedules],
   )
 
-  // 每个日期所属"周带"序号（周一为一周的起点，连续日期按周分块，两种颜色交替）
-  // 用于考勤矩阵日期列头交替配色，日期多时可依周界清晰分辨
-  const dateBands = useMemo(() => {
-    const seen = new Map<string, number>()
-    let order = 0
-    return dates.map((d) => {
-      const wk = new Date(`${d}T00:00:00`)
-      const monday = new Date(wk)
-      monday.setDate(wk.getDate() - ((wk.getDay() + 6) % 7))
-      const key = `${monday.getFullYear()}-${monday.getMonth()}-${monday.getDate()}`
-      if (!seen.has(key)) seen.set(key, order++)
-      return seen.get(key)! % 2
-    })
-  }, [dates])
-
   // 学员按班型顺序、再按首次出现顺序排列
   const studentList = useMemo(() => {
     const list: { name: string; course: string }[] = []
@@ -434,7 +419,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                           key={d}
                           className={cn(
                             'text-xs font-medium text-slate-500 py-3 text-center whitespace-nowrap sticky top-0 z-10 border-b border-slate-200',
-                            dateBands[i] === 0 ? 'bg-slate-50' : 'bg-slate-200/70',
+                            i % 2 === 0 ? 'bg-slate-50' : 'bg-slate-200/70',
                           )}
                         >
                           {mdFmt(d)}
