@@ -407,19 +407,19 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                 <span style={{ color: '#A9A79F' }}>— 无课</span>
               </div>
 
-              <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+              <div className="overflow-auto max-h-[65vh] rounded-xl border border-slate-200 bg-white">
                 <table className="w-full text-sm border-collapse">
                   <thead>
                     <tr>
-                      <th className="text-left text-xs font-medium text-slate-500 px-3.5 py-3 whitespace-nowrap sticky left-0 z-20 bg-slate-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
+                      <th className="text-left text-xs font-medium text-slate-500 px-3.5 py-3 whitespace-nowrap sticky top-0 left-0 z-30 bg-slate-50 border-b border-slate-200 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
                         学员
                       </th>
                       {dates.map((d) => (
-                        <th key={d} className="text-xs font-medium text-slate-500 py-3 text-center whitespace-nowrap">
+                        <th key={d} className="text-xs font-medium text-slate-500 py-3 text-center whitespace-nowrap sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
                           {mdFmt(d)}
                         </th>
                       ))}
-                      <th className="text-xs font-medium text-slate-500 py-3 text-center whitespace-nowrap px-3.5">
+                      <th className="text-xs font-medium text-slate-500 py-3 text-center whitespace-nowrap px-3.5 sticky top-0 z-10 bg-slate-50 border-b border-slate-200">
                         合计
                       </th>
                     </tr>
