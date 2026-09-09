@@ -21,6 +21,7 @@ import { StudentAdmin } from './StudentAdmin'
 import { CourseAdmin } from './CourseAdmin'
 import { ScheduleAdmin } from './ScheduleAdmin'
 import { AttendanceAdmin } from './AttendanceAdmin'
+import { DashboardAdmin } from './DashboardAdmin'
 import { AdminLogin } from './AdminLogin'
 import { cn } from '@/utils/cn'
 
@@ -38,6 +39,7 @@ type SubPage =
   | 'attendance'
   | 'announcement'
   | 'shareLinks'
+  | 'dashboard'
   | null
 
 // 从 URL hash 解析当前子页面：#admin/students → 'students'
@@ -55,6 +57,7 @@ function readSubPageFromHash(): SubPage {
       'attendance',
       'announcement',
       'shareLinks',
+      'dashboard',
     ]
     return valid.includes(sub as SubPage) ? (sub as SubPage) : null
   } catch {
@@ -492,6 +495,19 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     )
   }
 
+  // 排课数据看板二级页面
+  if (activeSubPage === 'dashboard') {
+    return (
+      <>
+        <DashboardAdmin
+          onBack={() => goSubPage(null)}
+          onToast={showToast}
+        />
+        {toast && <ToastView toast={toast} />}
+      </>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* 顶部栏 */}
@@ -668,6 +684,27 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
               className="btn-primary text-sm py-1.5 px-3"
             >
               进入分享链接 →
+            </button>
+          </div>
+        </section>
+
+        {/* 数据看板入口 */}
+        <section className="card p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <span className="w-1 h-4 bg-brand-500 rounded"></span>
+                排课数据看板
+              </h2>
+              <div className="text-xs text-slate-500 mt-1.5 ml-3">
+                查看自然月或日期范围的每日安排与考勤统计
+              </div>
+            </div>
+            <button
+              onClick={() => goSubPage('dashboard')}
+              className="btn-primary text-sm py-1.5 px-3"
+            >
+              进入数据看板 →
             </button>
           </div>
         </section>
