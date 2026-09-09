@@ -81,7 +81,6 @@ export function StudentAdmin({ students, studentCourses, busy, onBack, onDelete,
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500 text-xs">
                     <th className="text-left py-2 px-2 font-medium">姓名</th>
-                    <th className="text-left py-2 px-2 font-medium">ID</th>
                     <th className="text-left py-2 px-2 font-medium">课程</th>
                     <th className="text-right py-2 px-2 font-medium">操作</th>
                   </tr>
@@ -92,8 +91,7 @@ export function StudentAdmin({ students, studentCourses, busy, onBack, onDelete,
                       key={s.id}
                       className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
                     >
-                      <td className="py-2.5 px-2 font-medium text-slate-700">{s.name}</td>
-                      <td className="py-2.5 px-2 text-slate-500 font-mono text-xs">{s.id}</td>
+                      <td className="py-2.5 px-2 font-medium text-slate-700 whitespace-nowrap">{s.name}</td>
                       <td className="py-2.5 px-2">
                         {(studentCourses.get(s.id) || []).length === 0 ? (
                           <span className="text-slate-300">—</span>

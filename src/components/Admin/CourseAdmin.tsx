@@ -81,7 +81,6 @@ export function CourseAdmin({ courses, busy, onBack, onDelete, onAdd, onUpdate }
                     <th className="text-left py-2 px-2 font-medium">颜色</th>
                     <th className="text-left py-2 px-2 font-medium">课程名称</th>
                     <th className="text-left py-2 px-2 font-medium">默认时间</th>
-                    <th className="text-left py-2 px-2 font-medium">ID</th>
                     <th className="text-right py-2 px-2 font-medium">操作</th>
                   </tr>
                 </thead>
@@ -99,13 +98,12 @@ export function CourseAdmin({ courses, busy, onBack, onDelete, onAdd, onUpdate }
                           )}
                         />
                       </td>
-                      <td className="py-2.5 px-2 font-medium text-slate-700">{c.name}</td>
-                      <td className="py-2.5 px-2 text-slate-600 text-xs">
+                      <td className="py-2.5 px-2 font-medium text-slate-700 whitespace-nowrap">{c.name}</td>
+                      <td className="py-2.5 px-2 text-slate-600 text-xs whitespace-nowrap">
                         {c.defaultStartTime || c.defaultEndTime
                           ? `${c.defaultStartTime || '--'} - ${c.defaultEndTime || '--'}`
                           : <span className="text-slate-300">—</span>}
                       </td>
-                      <td className="py-2.5 px-2 text-slate-500 font-mono text-xs">{c.id}</td>
                       <td className="py-2.5 px-2 text-right whitespace-nowrap">
                         <button
                           onClick={() => setEditing(c)}

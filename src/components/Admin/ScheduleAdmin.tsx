@@ -260,11 +260,10 @@ export function ScheduleAdmin({ students, courses, onBack, onToast, onRefreshStu
                         {s.studentName}
                       </td>
                       <td className="py-2.5 px-2">
-                        <div className="font-medium text-slate-700">{s.courseName}</div>
-                        <div className="text-xs text-slate-400 font-mono">{s.id}</div>
+                        <div className="font-medium text-slate-700 whitespace-nowrap">{s.courseName}</div>
                       </td>
-                      <td className="py-2.5 px-2 text-slate-600">{s.date}</td>
-                      <td className="py-2.5 px-2 text-slate-600">
+                      <td className="py-2.5 px-2 text-slate-600 whitespace-nowrap">{s.date}</td>
+                      <td className="py-2.5 px-2 text-slate-600 whitespace-nowrap">
                         {s.startTime}-{s.endTime}
                       </td>
                       <td className="py-2.5 px-2">
