@@ -57,7 +57,6 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 5. `batch_add_schedules({courseId, dates, studentIds, startTime?, endTime?})`
 6. **写后核对（强制）**：比对返回 `data.students` 中的姓名与用户名单，不一致立即停止并修正；向用户报告 `{created, skipped, errors}`，skipped/errors 非零时逐条解释
 7. `search_schedules` 复核并展示
-8. 完成后生成看板（见工作流 6）
 
 ### 3. 调课
 用户说"把张伟周二的课挪到周五 15:00"：
@@ -77,7 +76,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 4. `search_schedules` 复核 attendance 字段
 
 ### 6. 生成排课看板（HTML 总览页）
-触发时机：批量排课完成后；或用户要求"看某月排课/看板/总览/导出排课表"。
+触发时机：**仅当用户明确要求**"看某月排课/看板/总览/导出排课表"时触发；**不在排课、点名等操作结束后自动生成**。
 1. `search_schedules({startDate: 月初, endDate: 月末})` + `list_courses()` 取当月排课与课程
 2. 用 Write 组装 JSON 文件 `{ "schedules": [...], "courses": [...] }`。可精简字段省 token：只留 `schedules[].studentName/courseName/date/startTime/endTime/attendance` 与 `courses[].name/color`，按 date 分段、每段按班型分组书写；写完校验「各日期分组条数相加 = 工具返回的 total」
 3. 执行本地脚本（先 `cd` 到目标工作目录，HTML 输出在 `process.cwd()`）：
