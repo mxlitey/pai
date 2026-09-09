@@ -425,7 +425,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                   <table className="text-sm border-collapse table-fixed">
                     <thead>
                       <tr>
-                        <th className="text-left text-xs font-medium text-slate-500 w-[112px] px-3.5 py-3 whitespace-nowrap sticky left-0 z-30 bg-slate-50 border-b border-slate-200 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
+                        <th className="text-center text-xs font-medium text-slate-500 w-[112px] px-3.5 py-3 whitespace-nowrap sticky left-0 z-30 bg-slate-50 border-b border-slate-200 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
                           学员
                         </th>
                         {dates.map((d, i) => (
@@ -452,7 +452,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                     <tbody>
                       {studentList.map((st) => (
                         <tr key={st.name} className="border-t border-slate-100">
-                          <td className="w-[112px] px-3.5 py-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 z-10 bg-slate-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">{st.name}</td>
+                          <td className="w-[112px] px-3.5 py-2 text-center text-slate-700 font-medium whitespace-nowrap sticky left-0 z-10 bg-slate-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">{st.name}</td>
                           {dates.map((d, i) => {
                             const colClass = i % 2 === 1 ? 'bg-slate-50' : ''
                             const marks: React.ReactNode[] = []
