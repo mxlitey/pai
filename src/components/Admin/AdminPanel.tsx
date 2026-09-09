@@ -694,17 +694,17 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
             <div>
               <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
                 <span className="w-1 h-4 bg-brand-500 rounded"></span>
-                排课数据看板
+                看板数据
               </h2>
               <div className="text-xs text-slate-500 mt-1.5 ml-3">
-                查看自然月或日期范围的每日安排与考勤统计
+                查看看板数据
               </div>
             </div>
             <button
               onClick={() => goSubPage('dashboard')}
               className="btn-primary text-sm py-1.5 px-3"
             >
-              进入数据看板 →
+              进入看板数据 →
             </button>
           </div>
         </section>

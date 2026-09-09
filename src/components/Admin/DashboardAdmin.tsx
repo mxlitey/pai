@@ -226,7 +226,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
               返回后台
             </button>
             <span className="text-slate-300">/</span>
-            <h1 className="text-base font-semibold text-slate-800">排课数据看板</h1>
+            <h1 className="text-base font-semibold text-slate-800">看板数据</h1>
           </div>
         </div>
       </header>
@@ -369,12 +369,6 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
             <section>
               <div className="flex flex-wrap items-center gap-3 mb-3">
                 <h2 className="text-sm font-semibold text-slate-800">考勤矩阵</h2>
-                <span className="text-xs text-slate-400">
-                  {viewMode === 'month'
-                    ? `${+month.split('-')[1]}月共 ${stats.days} 天排课`
-                    : `共 ${stats.days} 天排课`}
-                  {` · 生成于 ${formatDate(new Date())}`}
-                </span>
               </div>
 
               {/* 图例 */}
