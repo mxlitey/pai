@@ -192,15 +192,6 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
     })
   }, [])
 
-  // 考勤矩阵：正文横向滚动时，同步表头的横向位置（表头 sticky 跟随页面纵向吸顶）
-  const headRef = useRef<HTMLDivElement>(null)
-  const bodyRef = useRef<HTMLDivElement>(null)
-  const onBodyScroll = useCallback(() => {
-    const h = headRef.current
-    const b = bodyRef.current
-    if (h && b) h.scrollLeft = b.scrollLeft
-  }, [])
-
   const stats = useMemo(
     () => ({
       records: schedules.length,
@@ -417,42 +408,33 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white">
-                {/* 表头：sticky 吸顶跟随页面（纵向冻结），横向位置由正文滚动驱动同步 */}
-                <div
-                  ref={headRef}
-                  className="sticky top-[3.25rem] z-20 overflow-hidden rounded-t-lg bg-slate-50 shadow-[0_2px_4px_-1px_rgba(0,0,0,0.08)]"
-                >
-                  <table className="w-full text-sm border-collapse table-fixed">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
                     <thead>
                       <tr>
-                        <th className="text-center text-xs font-medium text-slate-500 w-[112px] px-3.5 py-3 whitespace-nowrap sticky left-0 z-30 bg-slate-50 border-b border-slate-200 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
+                        <th className="text-center text-xs font-medium text-slate-500 px-3.5 py-3 whitespace-nowrap sticky left-0 z-30 bg-slate-50 border-b border-slate-200 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">
                           学员
                         </th>
                         {dates.map((d, i) => (
                           <th
                             key={d}
                             className={cn(
-                              'text-xs font-medium text-slate-500 w-24 py-3 text-center whitespace-nowrap border-b border-slate-200',
+                              'text-xs font-medium text-slate-500 px-2 py-3 text-center whitespace-nowrap border-b border-slate-200',
                               i % 2 === 1 ? 'bg-slate-50' : 'bg-white',
                             )}
                           >
                             {mdFmt(d)}
                           </th>
                         ))}
-                        <th className="text-xs font-medium text-slate-500 w-32 py-3 text-center whitespace-nowrap px-3.5 bg-slate-50 border-b border-slate-200">
+                        <th className="text-xs font-medium text-slate-500 px-3.5 py-3 text-center whitespace-nowrap bg-slate-50 border-b border-slate-200">
                           考勤
                         </th>
                       </tr>
                     </thead>
-                  </table>
-                </div>
-                {/* 正文：随页面滚动（无缝衔接），横向滚动时同步表头 */}
-                <div ref={bodyRef} onScroll={onBodyScroll} className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse table-fixed">
                     <tbody>
                       {studentList.map((st) => (
                         <tr key={st.name} className="border-t border-slate-100">
-                          <td className="w-[112px] px-3.5 py-2 text-center text-slate-700 font-medium whitespace-nowrap sticky left-0 z-10 bg-slate-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">{st.name}</td>
+                          <td className="px-3.5 py-2 text-center text-slate-700 font-medium whitespace-nowrap sticky left-0 z-10 bg-slate-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">{st.name}</td>
                           {dates.map((d, i) => {
                             const colClass = i % 2 === 1 ? 'bg-slate-50' : ''
                             const marks: React.ReactNode[] = []
@@ -508,18 +490,18 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                             }
                             if (!marks.length) {
                               return (
-                                <td key={d} className={cn('w-24 text-center py-2 px-1 text-slate-200', colClass)}>
+                                <td key={d} className={cn('text-center px-1 py-2 text-slate-200 whitespace-nowrap', colClass)}>
                                   —
                                 </td>
                               )
                             }
                             return (
-                              <td key={d} className={cn('w-24 text-center py-2 px-1', colClass)}>
+                              <td key={d} className={cn('text-center px-1 py-2 whitespace-nowrap', colClass)}>
                                 <div className="flex justify-center gap-0.5 whitespace-nowrap">{marks}</div>
                               </td>
                             )
                           })}
-                          <td className="w-32 text-center py-2 px-3.5 text-xs text-slate-500 whitespace-nowrap bg-slate-50">
+                          <td className="text-center py-2 px-3.5 text-xs text-slate-500 whitespace-nowrap bg-slate-50">
                             {attendanceOf.count[st.name].attended}到·{attendanceOf.count[st.name].absent}缺·
                             {attendanceOf.count[st.name].pending}未
                           </td>
