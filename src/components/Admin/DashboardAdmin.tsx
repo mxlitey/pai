@@ -203,7 +203,15 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
   )
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div
+      className="min-h-screen bg-slate-50"
+      onClick={(e) => {
+        // 点击非图例/非标识的空白区域时，清除全部高亮（与看板脚本一致）
+        if (!(e.target as HTMLElement).closest('[data-highlight]')) {
+          setActiveCourses(new Set())
+        }
+      }}
+    >
       {/* 顶部栏 */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -374,6 +382,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                 {courseOrder.map((course) => (
                   <button
                     key={course}
+                    data-highlight="1"
                     onClick={() => toggleCourse(course)}
                     className={cn(
                       'flex items-center gap-1.5 rounded px-1.5 py-0.5 transition-colors',
@@ -431,6 +440,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                             if (status === 'attended') {
                               marks.push(
                                 <span
+                                  data-highlight="1"
                                   key={cn}
                                   onClick={() => toggleCourse(cn)}
                                   className="cursor-pointer transition-transform px-1 rounded leading-relaxed tabular-nums"
@@ -448,6 +458,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                             } else if (status === 'absent') {
                               marks.push(
                                 <span
+                                  data-highlight="1"
                                   key={cn}
                                   onClick={() => toggleCourse(cn)}
                                   className="cursor-pointer transition-transform"
@@ -459,6 +470,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                             } else {
                               marks.push(
                                 <span
+                                  data-highlight="1"
                                   key={cn}
                                   onClick={() => toggleCourse(cn)}
                                   className="cursor-pointer transition-transform"
