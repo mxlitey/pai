@@ -344,7 +344,12 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                               {b.startTime}–{b.endTime}
                             </span>
                             <span className="flex-1 min-w-0 text-sm leading-relaxed">
-                              {b.items.map((s) => s.studentName).join('、')}
+                              {b.items.map((s, i) => (
+                                <span key={`${s.id}-${i}`}>
+                                  {i > 0 && '、'}
+                                  <span className="whitespace-nowrap">{s.studentName}</span>
+                                </span>
+                              ))}
                             </span>
                             <span
                               className="shrink-0 max-w-[96px] text-xs text-center rounded px-1.5 py-0.5 break-all"
