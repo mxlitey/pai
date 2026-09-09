@@ -419,7 +419,7 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                           key={d}
                           className={cn(
                             'text-xs font-medium text-slate-500 py-3 text-center whitespace-nowrap sticky top-0 z-10 border-b border-slate-200',
-                            i % 2 === 0 ? 'bg-slate-50' : 'bg-slate-200/70',
+                            i % 2 === 1 ? 'bg-slate-50' : 'bg-white',
                           )}
                         >
                           {mdFmt(d)}
@@ -434,7 +434,8 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                     {studentList.map((st) => (
                       <tr key={st.name} className="border-t border-slate-100">
                         <td className="px-3.5 py-2 text-slate-700 font-medium whitespace-nowrap sticky left-0 z-10 bg-white shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">{st.name}</td>
-                        {dates.map((d) => {
+                        {dates.map((d, i) => {
+                          const colClass = i % 2 === 1 ? 'bg-slate-50' : ''
                           const marks: React.ReactNode[] = []
                           for (const cn of courseOrder) {
                             const status = attendanceOf.statusOf[st.name][`${cn}|${d}`]
@@ -488,13 +489,13 @@ export function DashboardAdmin({ onBack, onToast }: DashboardAdminProps) {
                           }
                           if (!marks.length) {
                             return (
-                              <td key={d} className="text-center py-2 px-1 text-slate-200">
+                              <td key={d} className={cn('text-center py-2 px-1 text-slate-200', colClass)}>
                                 —
                               </td>
                             )
                           }
                           return (
-                            <td key={d} className="text-center py-2 px-1">
+                            <td key={d} className={cn('text-center py-2 px-1', colClass)}>
                               <div className="flex justify-center gap-0.5 whitespace-nowrap">{marks}</div>
                             </td>
                           )
