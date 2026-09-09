@@ -5,7 +5,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 # 排课助手（Schedule Assistant）
 
-通过云端 `pai-schedule` MCP server（`https://<域名>/api/mcp`，写操作需在请求头配置 `X-Admin-Password`）的 17 个工具管理排课日历系统。排课数据全部经 MCP 工具读写；签到表解析由本 skill 自带本地脚本完成，排课看板 HTML 由后台管理页直接导出。本文档定义字段规范、标准工作流与安全边界。
+通过云端 `pai-schedule` MCP server（`https://<域名>/api/mcp`，写操作需在请求头配置 `X-Admin-Password`）的 17 个工具管理排课日历系统。排课数据全部经 MCP 工具读写；签到表解析由本 skill 自带本地脚本完成。本文档定义字段规范、标准工作流与安全边界。
 
 ## 工具清单
 
@@ -75,14 +75,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 3. 返回 `notFound` 非空时告知"该排课已不存在（可能已被删除）"
 4. `search_schedules` 复核 attendance 字段
 
-### 6. 导出排课看板（HTML 总览页）
-触发时机：**仅当用户明确要求**"看某月排课/看板/总览/导出排课表"时触发；**不在排课、点名等操作结束后自动生成**。
-1. 引导用户在**后台管理 → 看板数据**页筛选目标日期范围（自然月或日期范围）
-2. 页面右上角点击「下载 HTML」，即按当前筛选范围导出自包含单文件 HTML 看板（内联 CSS+JS，保留班型高亮交互），可浏览器直接打开或打印
-3. **无需本地脚本 / 无需手动拼接 JSON / 无需 MCP 取数**：渲染逻辑已内置于前端（`src/utils/dashboardHtml.ts`），由页面直接从接口数据生成
-4. 向用户说明：范围为当前筛选展示范围；如需其他范围，先调整筛选条件再下载
-
-### 7. 导入签到表（xlsx/docx）
+### 6. 导入签到表（xlsx/docx）
 1. 本地脚本解析（见「本地脚本」）→ 用 Read 读取解析结果
 2. `list_students` + `list_courses` 核对姓名与课程（课程不存在时先向用户确认命名再 `add_course`）
 3. 请假日期不排课或按用户要求处理
@@ -92,7 +85,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - 解析 docx 时注意：合并单元格的值只出现在首个单元格，后续行为空；"请假"标记在对应日期列
 - 不要自己写解析脚本；测试文件放 `test-files/`（已 gitignore，不会推送）
 
-### 8. 生成学员考勤表
+### 7. 生成学员考勤表
 用户说"我要张伟的考勤表""张伟出勤怎么样"：
 1. `list_students({q: "张伟"})` 确认学员 id（重名时向用户澄清）
 2. `get_schedules({studentId})` 拉取该学员全部排课记录（用户指定时间范围时传 `startDate`/`endDate`）
@@ -138,7 +131,6 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - "该工具需要管理密码" → 告知用户只读操作可用，写操作需在 MCP 客户端请求头加 `X-Admin-Password`（值同后台登录密码）
 - "管理密码错误" → 检查 MCP 配置中的 `X-Admin-Password` 是否正确
 - 无法连接 MCP 端点 → 检查云端部署状态与 URL（`https://<域名>/api/mcp`）
-- 后台看板「下载 HTML」不可用 → 先确认看板数据页已加载出数据（有排课记录）；范围无排课时会提示。生成逻辑见工作流 6
 - `batch_add_schedules` 返回 errors → 逐条说明失败原因（如 id 碰撞），建议重试
 
 ## 历史数据说明
