@@ -363,7 +363,7 @@ pai/
 | `list_courses` | 获取全部课程（含默认时段，需密码） |
 | `batch_add_schedules` | 批量新增排课（日期×学员笛卡尔积，单条即传 1 日期 × 1 学员）；时间缺省取课程默认时段；同学员同日同时段同课程自动去重跳过，重复项在 `errors[].existing` 回传已存在的排课记录 |
 | `update_schedule` | 修改排课（含跨月/跨学员迁移） |
-| `set_attendance` | 点名：设置排课到课状态（attended=到课 / absent=缺勤 / none=清除标记回到未点名） |
+| `set_attendance_batch` | 批量点名：一次提交多条排课的点到状态（单条点名传长度 1 的数组，单次最多 100 条）；attended=到课 / absent=缺勤 / none=清除标记回到未点名 |
 | `delete_schedule` | 删除单条排课（需显式 `confirm=true`） |
 | `add_student` | 新增学员 |
 | `update_student` | 更新学员 |

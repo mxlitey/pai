@@ -21,7 +21,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 **写操作（需鉴权）**
 - `batch_add_schedules({courseId, dates[], studentIds[], startTime?, endTime?, note?})` — 新增排课（单条即传 1 日期 × 1 学员；多学员×多日期为笛卡尔积）；时间缺省自动取课程默认时间，课程无默认时间则报错；业务级去重：同学员+同日+同 courseId+同时段已存在时自动跳过并计入 `skipped`，重复项在 `errors[].existing` 回传已存在记录
 - `update_schedule({old, new})` — 修改排课（old 为原完整记录，new 为修改后完整记录，id 必须一致；支持跨学员/跨月迁移）
-- `set_attendance({id, studentId, date, attendance})` — 点名：attended=到课 / absent=缺勤 / none=清除回到未点名
+- `set_attendance_batch({updates: [{id, studentId, date, attendance}]})` — 批量点名：一次提交整批（单条点名传长度 1 的数组，单次最多 100 条）；attended=到课 / absent=缺勤 / none=清除回到未点名
 - `delete_schedule({confirm, id, studentId, date})` — 删单条排课
 - `add_student({name})` / `update_student({id, name})` / `delete_student({confirm, studentId})` — 学员管理
 - `add_course({name, defaultStartTime, defaultEndTime, color?})` / `update_course({id, name, defaultStartTime, defaultEndTime, color?})` / `delete_course({confirm, courseId})` — 课程管理
@@ -36,7 +36,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 | `studentId`/`courseId` | `[A-Za-z0-9_-]{1,64}` | `s001` |
 | `month` | `yyyy-MM` | `2026-09` |
 
-- `Schedule` 对象：`id?`, `studentId`(必填), `studentName`(后端补全), `courseId`(必填), `courseName`(后端根据 courseId 补全，不采信传入值), `date`, `startTime`/`endTime`(批量排课可缺省，缺省时取课程默认时间), `note?`, `color?`(缺省取课程颜色), `attendance?`(attended=到课 / absent=缺勤，缺省=未点名；由 `set_attendance` 设置，新增/修改排课时不传)
+- `Schedule` 对象：`id?`, `studentId`(必填), `studentName`(后端补全), `courseId`(必填), `courseName`(后端根据 courseId 补全，不采信传入值), `date`, `startTime`/`endTime`(批量排课可缺省，缺省时取课程默认时间), `note?`, `color?`(缺省取课程颜色), `attendance?`(attended=到课 / absent=缺勤，缺省=未点名；由 `set_attendance_batch` 设置，新增/修改排课时不传)
 - 用户说"下周三"等相对日期时，先换算为绝对日期再调用工具
 
 ## 标准工作流
@@ -68,9 +68,9 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - 新增课程 → `add_course`（后端生成 `c_xxx` 格式 id）→ `list_courses` 回读真实 courseId → 再走批量排课流程
 
 ### 5. 点名
-用户说"给今天的课点名""张伟昨天缺勤了""改回未点名"：
+用户说"给今天的课点名""这个班全部到课""张伟昨天缺勤了""改回未点名"：
 1. `search_schedules({startDate: 目标日期, endDate: 目标日期, courseId?, studentId?})` 拉取要点名的排课，取每条 `id`/`studentId`/`date`
-2. 向用户确认名单与状态（到课/缺勤/清除），逐条 `set_attendance`，**串行执行**（见安全边界 4）
+2. 向用户确认名单与状态（到课/缺勤/清除）后，**一次** `set_attendance_batch` 提交整批（单条点名也传长度 1 的数组），不必逐条调用
 3. 返回 `notFound` 非空时告知"该排课已不存在（可能已被删除）"
 4. `search_schedules` 复核 attendance 字段
 
@@ -133,7 +133,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 1. **删除类工具**（`delete_schedule`/`delete_student`/`delete_course`）：调用前必须列出将删除的具体内容并等待明确确认；`delete_student`/`delete_course` 会级联删除关联**全部排课**，须告知影响范围；确认后才传 `confirm: true`
 2. **不代用户猜测**：重名学员、不确定的课程名、日期歧义（"周末"是周六还是周日）先澄清再操作
 3. **写操作前先读**：排课前必须先 `list_students` + `list_courses` 核实 id，不凭记忆编造
-4. **串行执行写操作**：涉及同一学员或多条写操作时**禁止并行**调用写工具（含 `update_schedule`、`set_attendance`、`update_student` 等批量修复场景）。后端 Blob 存储为读-改-写模式，并发写会互相覆盖丢数据。逐条串行：调用一条 → 等返回成功 → 再下一条；某条失败先重试该条
+4. **写操作串行、优先用批量工具**：后端 Blob 存储为读-改-写模式，并发写会互相覆盖丢数据，因此**禁止并行**调用写工具（含 `update_schedule`、`set_attendance_batch`、`update_student` 等批量修复场景）。多条改动优先用批量工具一次提交（`set_attendance_batch`、`batch_add_schedules`）；没有批量工具时才逐条串行：调用一条 → 等返回成功 → 再下一条；某条失败先重试该条
 5. **报告结果**：写操作完成后主动展示后端返回结果，失败时如实报告
 6. **公告**：修改前先 `get_announcement` 展示当前内容，确认后再 `save_announcement`
 

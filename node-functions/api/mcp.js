@@ -313,33 +313,42 @@ const TOOLS = [
     },
   },
   {
-    name: 'set_attendance',
-    title: '点名（设置到课状态）',
+    name: 'set_attendance_batch',
+    title: '批量点名（设置到课状态）',
     description:
-      '为一条排课记录设置点名状态。可先用 search_schedules / get_schedules 查询排课 id。需管理密码。',
+      '为一条或多条排课记录设置点名状态（单条点名即传长度 1 的数组，一次提交即可，不必逐条调用）。可先用 search_schedules / get_schedules 查询排课 id。单次最多 100 条；记录不存在不报错，计入返回的 notFound。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {
-        id: { type: 'string', description: '排课记录 ID' },
-        studentId: studentIdSchema,
-        date: dateSchema,
-        attendance: {
-          type: 'string',
-          enum: ['attended', 'absent', 'none'],
-          description: 'attended=到课，absent=缺勤，none=清除标记（回到未点名）',
+        updates: {
+          type: 'array',
+          minItems: 1,
+          maxItems: 100,
+          description: '点名更新列表，同一批一次提交（单条点名传长度 1 的数组）',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: '排课记录 ID' },
+              studentId: studentIdSchema,
+              date: dateSchema,
+              attendance: {
+                type: 'string',
+                enum: ['attended', 'absent', 'none'],
+                description: 'attended=到课，absent=缺勤，none=清除标记（回到未点名）',
+              },
+            },
+            required: ['id', 'studentId', 'date', 'attendance'],
+          },
         },
       },
-      required: ['id', 'studentId', 'date', 'attendance'],
+      required: ['updates'],
     },
     handler: async (a, ctx) => {
       needToken(ctx)
       return apiResultToTool(
         await callApi(
           scheduleAttendanceApi,
-          {
-            method: 'PUT',
-            body: { updates: [{ id: a.id, studentId: a.studentId, date: a.date, attendance: a.attendance }] },
-          },
+          { method: 'PUT', body: { updates: a.updates } },
           ctx,
         ),
       )
