@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { Course } from '@/types'
 import { cn } from '@/utils/cn'
 import { COURSE_COLOR_OPTIONS, getCourseDotClass } from '@/utils/courseColors'
+import { Modal } from '@/components/Modal'
+import { Pagination, usePagination } from './Pagination'
 
 interface CourseAdminProps {
   courses: Course[]
@@ -15,16 +17,9 @@ interface CourseAdminProps {
 const PAGE_SIZE = 15
 
 export function CourseAdmin({ courses, busy, onBack, onDelete, onAdd, onUpdate }: CourseAdminProps) {
-  const [page, setPage] = useState(1)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Course | null>(null)
-
-  const totalPages = Math.max(1, Math.ceil(courses.length / PAGE_SIZE))
-  const safePage = Math.min(page, totalPages)
-  const pageItems = useMemo(() => {
-    const start = (safePage - 1) * PAGE_SIZE
-    return courses.slice(start, start + PAGE_SIZE)
-  }, [courses, safePage])
+  const { safePage, totalPages, pageItems, setPage } = usePagination(courses, PAGE_SIZE)
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -127,30 +122,12 @@ export function CourseAdmin({ courses, busy, onBack, onDelete, onAdd, onUpdate }
             </div>
 
             {/* 分页 */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-                <span className="text-xs text-slate-400">
-                  第 {safePage} / {totalPages} 页 · 每页 {PAGE_SIZE} 条
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage <= 1}
-                    className="btn-ghost border border-slate-200 text-xs py-1 px-2.5 disabled:opacity-40"
-                  >
-                    上一页
-                  </button>
-                  {renderPageButtons(safePage, totalPages, setPage)}
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={safePage >= totalPages}
-                    className="btn-ghost border border-slate-200 text-xs py-1 px-2.5 disabled:opacity-40"
-                  >
-                    下一页
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              page={safePage}
+              totalPages={totalPages}
+              pageSize={PAGE_SIZE}
+              onChange={setPage}
+            />
           </section>
         )}
       </main>
@@ -175,49 +152,6 @@ export function CourseAdmin({ courses, busy, onBack, onDelete, onAdd, onUpdate }
   )
 }
 
-// 渲染页码按钮
-function renderPageButtons(
-  current: number,
-  total: number,
-  setPage: (p: number) => void,
-) {
-  const buttons: (number | '...')[] = []
-  const around = 2
-  for (let i = 1; i <= total; i++) {
-    if (
-      i === 1 ||
-      i === total ||
-      (i >= current - around && i <= current + around)
-    ) {
-      buttons.push(i)
-    } else if (buttons[buttons.length - 1] !== '...') {
-      buttons.push('...')
-    }
-  }
-  return buttons.map((b, idx) => {
-    if (b === '...') {
-      return (
-        <span key={`e${idx}`} className="text-slate-400 text-xs px-1.5 select-none">
-          …
-        </span>
-      )
-    }
-    return (
-      <button
-        key={b}
-        onClick={() => setPage(b)}
-        className={
-          b === current
-            ? 'btn-primary text-xs py-1 px-2.5'
-            : 'btn-ghost border border-slate-200 text-xs py-1 px-2.5'
-        }
-      >
-        {b}
-      </button>
-    )
-  })
-}
-
 // ===== 新增/编辑课程弹窗 =====
 interface CourseEditModalProps {
   course?: Course // 有值 = 编辑模式；无值 = 新增模式
@@ -225,66 +159,22 @@ interface CourseEditModalProps {
   onSubmit: (course: Course) => Promise<boolean>
 }
 
-// 默认时间：小时 + 分钟两个独立 select
-// 分钟以 5 分钟为单位：00, 05, 10, ..., 55
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))
-const MINUTE_5MIN_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
-
-// 将任意 HH:mm 对齐到最近的 5 分钟刻度（向下取整）
-// 用于编辑模式加载历史数据时规整化（如 "09:03" -> "09:00"）
-function alignTo5Min(time: string): string {
-  if (!time || !/^\d{2}:\d{2}$/.test(time)) return time
-  const [h, m] = time.split(':').map(Number)
-  const alignedM = Math.floor(m / 5) * 5
-  return `${String(h).padStart(2, '0')}:${String(alignedM).padStart(2, '0')}`
-}
-
-// 从 "HH:mm" 中拆出小时与分钟（无值时返回空串）
-function splitTime(time?: string): { h: string; m: string } {
-  if (!time || !/^\d{2}:\d{2}$/.test(time)) return { h: '', m: '' }
-  const [h, m] = time.split(':')
-  return { h, m }
-}
-
 function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
   const isEdit = !!course
   const [form, setForm] = useState<Course>(
-    course
-      ? {
-          ...course,
-          // 编辑模式：将历史时间对齐到 5 分钟刻度，确保 select 能匹配
-          defaultStartTime: alignTo5Min(course.defaultStartTime || ''),
-          defaultEndTime: alignTo5Min(course.defaultEndTime || ''),
-        }
-      : {
-          id: '', // 新增时由后端自动生成
-          name: '',
-          color: 'blue',
-          defaultStartTime: '',
-          defaultEndTime: '',
-        },
+    course || {
+      id: '', // 新增时由后端自动生成
+      name: '',
+      color: 'blue',
+      defaultStartTime: '',
+      defaultEndTime: '',
+    },
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const handleChange = (field: keyof Course, value: string) => {
     setForm((f) => ({ ...f, [field]: value }))
-    setError('')
-  }
-
-  // 时间字段局部变更：小时与分钟分别选择，合成 "HH:mm" 写回
-  // 全空视为未设置；半选时保留中间态（如 "09:"），由 handleSave 的格式校验拦截
-  const handleTimeChange = (
-    field: 'defaultStartTime' | 'defaultEndTime',
-    part: 'h' | 'm',
-    value: string,
-  ) => {
-    setForm((f) => {
-      const current = splitTime(String(f[field] || ''))
-      const next = { ...current, [part]: value }
-      const merged = next.h === '' && next.m === '' ? '' : `${next.h}:${next.m}`
-      return { ...f, [field]: merged }
-    })
     setError('')
   }
 
@@ -326,32 +216,26 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
     'w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 头部 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-xl">
-          <h3 className="font-semibold text-base text-slate-800">
-            {isEdit ? '编辑课程' : '新增课程'}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-            aria-label="关闭"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+    <Modal
+      title={isEdit ? '编辑课程' : '新增课程'}
+      onClose={onClose}
+      size="md"
+      footerAlign="end"
+      footer={
+        <>
+          <button onClick={onClose} className="btn-ghost">
+            取消
           </button>
-        </div>
-
-        {/* 内容 */}
-        <div className="px-5 py-4 space-y-4">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={cn('btn-primary', saving && 'opacity-50')}
+          >
+            {saving ? '保存中…' : isEdit ? '保存' : '新增'}
+          </button>
+        </>
+      }
+    >
           {/* 必填说明 */}
           <div className="text-xs text-slate-400">
             <span className="text-rose-500">*</span> 为必填项
@@ -395,57 +279,25 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
             </div>
           </div>
 
-          {/* 默认时间：小时 + 分钟分别选择，分钟按 5 分钟刻度 */}
+          {/* 默认时间 */}
           <div className="flex items-start gap-4">
             <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
               <span className="text-rose-500 mr-0.5">*</span>默认时间
             </span>
             <div className="flex items-center gap-2 flex-1">
-              {/* 开始时间：时 : 分 */}
-              <select
-                value={splitTime(form.defaultStartTime).h}
-                onChange={(e) => handleTimeChange('defaultStartTime', 'h', e.target.value)}
-                className={cn(inputClass, 'bg-white w-20 text-center')}
-              >
-                <option value="">时</option>
-                {HOUR_OPTIONS.map((h) => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
-              <span className="text-slate-400">:</span>
-              <select
-                value={splitTime(form.defaultStartTime).m}
-                onChange={(e) => handleTimeChange('defaultStartTime', 'm', e.target.value)}
-                className={cn(inputClass, 'bg-white w-20 text-center')}
-              >
-                <option value="">分</option>
-                {MINUTE_5MIN_OPTIONS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              <span className="text-slate-400 px-1">-</span>
-              {/* 结束时间：时 : 分 */}
-              <select
-                value={splitTime(form.defaultEndTime).h}
-                onChange={(e) => handleTimeChange('defaultEndTime', 'h', e.target.value)}
-                className={cn(inputClass, 'bg-white w-20 text-center')}
-              >
-                <option value="">时</option>
-                {HOUR_OPTIONS.map((h) => (
-                  <option key={h} value={h}>{h}</option>
-                ))}
-              </select>
-              <span className="text-slate-400">:</span>
-              <select
-                value={splitTime(form.defaultEndTime).m}
-                onChange={(e) => handleTimeChange('defaultEndTime', 'm', e.target.value)}
-                className={cn(inputClass, 'bg-white w-20 text-center')}
-              >
-                <option value="">分</option>
-                {MINUTE_5MIN_OPTIONS.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
+              <input
+                type="time"
+                value={form.defaultStartTime || ''}
+                onChange={(e) => handleChange('defaultStartTime', e.target.value)}
+                className={inputClass}
+              />
+              <span className="text-slate-400">-</span>
+              <input
+                type="time"
+                value={form.defaultEndTime || ''}
+                onChange={(e) => handleChange('defaultEndTime', e.target.value)}
+                className={inputClass}
+              />
             </div>
           </div>
 
@@ -455,22 +307,6 @@ function CourseEditModal({ course, onClose, onSubmit }: CourseEditModalProps) {
               {error}
             </div>
           )}
-        </div>
-
-        {/* 底部操作 */}
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 sticky bottom-0">
-          <button onClick={onClose} className="btn-ghost">
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className={cn('btn-primary', saving && 'opacity-50')}
-          >
-            {saving ? '保存中…' : isEdit ? '保存' : '新增'}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   )
 }

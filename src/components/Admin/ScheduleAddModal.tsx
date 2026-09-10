@@ -3,6 +3,8 @@ import type { Course, Student } from '@/types'
 import { batchAddSchedules } from '@/api/admin'
 import { cn } from '@/utils/cn'
 import { getCourseDotClass } from '@/utils/courseColors'
+import { filterStudents } from '@/utils/search'
+import { Modal } from '@/components/Modal'
 
 interface ScheduleAddModalProps {
   courses: Course[]
@@ -60,14 +62,7 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
   }, [courseId])
 
   // 按搜索词过滤学员
-  const filteredStudents = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return students
-    return students.filter((s) =>
-      s.name.toLowerCase().includes(q) ||
-      s.id.toLowerCase().includes(q),
-    )
-  }, [students, search])
+  const filteredStudents = useMemo(() => filterStudents(students, search), [students, search])
 
   // 全选/取消全选（仅对当前过滤结果）
   const allFilteredSelected =
@@ -171,33 +166,27 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
     'w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 头部 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-xl">
-          <div>
-            <h3 className="font-semibold text-base text-slate-800">新增排课</h3>
-            <p className="text-xs text-slate-400 mt-0.5">支持多日期 + 多学员批量排课，保存后不关窗可继续新增</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-            aria-label="关闭"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+    <Modal
+      title="新增排课"
+      subtitle="支持多日期 + 多学员批量排课，保存后不关窗可继续新增"
+      onClose={onClose}
+      footer={
+        <>
+          <button onClick={onClose} className="btn-ghost">
+            关闭
           </button>
-        </div>
-
-        {/* 内容 */}
-        <div className="px-5 py-4 space-y-4">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className={cn('btn-primary', saving && 'opacity-50')}
+          >
+            {saving
+              ? '保存中…'
+              : `新增排课${dates.length * selectedStudentIds.size > 0 ? `（${dates.length} 日 × ${selectedStudentIds.size} 人 = ${dates.length * selectedStudentIds.size} 条）` : ''}`}
+          </button>
+        </>
+      }
+    >
           {/* 必填说明 */}
           <div className="text-xs text-slate-400">
             <span className="text-rose-500">*</span> 为必填项，选择课程后将为每位选中学员在所选每个日期生成一条排课
@@ -420,25 +409,7 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
               ✓ {success}
             </div>
           )}
-        </div>
-
-        {/* 底部操作 */}
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-between gap-2 sticky bottom-0">
-          <button onClick={onClose} className="btn-ghost">
-            关闭
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className={cn('btn-primary', saving && 'opacity-50')}
-          >
-            {saving
-              ? '保存中…'
-              : `新增排课${dates.length * selectedStudentIds.size > 0 ? `（${dates.length} 日 × ${selectedStudentIds.size} 人 = ${dates.length * selectedStudentIds.size} 条）` : ''}`}
-          </button>
-        </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 

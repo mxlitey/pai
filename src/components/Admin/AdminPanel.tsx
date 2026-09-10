@@ -364,7 +364,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
     }
   }
 
-  // 更新学员（若姓名变更，后端会级联更新排课中的 studentName）
+  // 更新学员
   const handleUpdateStudent = async (student: Student): Promise<boolean> => {
     setBusy(true)
     try {
@@ -619,20 +619,7 @@ export function AdminPanel({ onExit }: AdminPanelProps) {
       </header>
 
       {/* Toast */}
-      {toast && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 animate-[fadeIn_0.2s]">
-          <div
-            className={cn(
-              'px-4 py-2.5 rounded-lg shadow-lg text-sm text-white',
-              toast.type === 'success' && 'bg-green-600',
-              toast.type === 'error' && 'bg-rose-600',
-              toast.type === 'info' && 'bg-slate-700',
-            )}
-          >
-            {toast.message}
-          </div>
-        </div>
-      )}
+      {toast && <ToastView toast={toast} />}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
         {/* 入口卡片：手机单列，平板两列，桌面三列 */}

@@ -22,6 +22,11 @@ export function SearchBar({ onSelectStudent, initialValue, onQueryChange }: Sear
   // 请求序号：仅最新请求的结果会被采纳，避免竞态覆盖
   const requestIdRef = useRef(0)
 
+  // 外部回显值变化时同步输入框（如首页通过 ?s= 异步恢复上次选中的学员）
+  useEffect(() => {
+    if (initialValue !== undefined) setQuery(initialValue)
+  }, [initialValue])
+
   // 防抖搜索
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) {

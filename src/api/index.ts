@@ -57,21 +57,6 @@ export async function getSchedules(
   return data.schedules
 }
 
-// 按学员姓名查询排课
-export async function getSchedulesByName(
-  studentName: string,
-  startDate?: string,
-  endDate?: string,
-): Promise<Schedule[]> {
-  const params = new URLSearchParams({ studentName })
-  if (startDate) params.set('startDate', startDate)
-  if (endDate) params.set('endDate', endDate)
-  const data = await request<{ schedules: Schedule[] }>(
-    `${API_BASE}/schedules?${params}`,
-  )
-  return data.schedules
-}
-
 // 公告信息
 export interface AnnouncementInfo {
   content: string

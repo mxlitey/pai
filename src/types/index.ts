@@ -42,26 +42,6 @@ export interface AttendanceUpdate {
 // 日历视图模式
 export type ViewMode = 'month' | 'week' | 'day'
 
-// API 响应
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T
-}
-
-// 学员查询结果
-export interface StudentSearchResult {
-  students: Student[]
-}
-
-// 排课查询结果
-export interface ScheduleQueryResult {
-  schedules: Schedule[]
-}
-
-// 按日期分组的排课
-export type SchedulesByDate = Record<string, Schedule[]>
-
 // 日历单元格数据
 export interface CalendarCell {
   date: Date

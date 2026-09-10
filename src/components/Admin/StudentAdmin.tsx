@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import type { Student } from '@/types'
 import { cn } from '@/utils/cn'
 import { getCourseCardClass } from '@/utils/courseColors'
+import { Modal } from '@/components/Modal'
+import { Pagination, usePagination } from './Pagination'
 
 // 学员有排课记录的课程（名称去重，带颜色）
 export type StudentCourseBadge = { name: string; color?: string }
@@ -19,17 +21,9 @@ interface StudentAdminProps {
 const PAGE_SIZE = 10
 
 export function StudentAdmin({ students, studentCourses, busy, onBack, onDelete, onAdd, onUpdate }: StudentAdminProps) {
-  const [page, setPage] = useState(1)
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<Student | null>(null)
-
-  const totalPages = Math.max(1, Math.ceil(students.length / PAGE_SIZE))
-  // 当前页越界时回到最后一页（如删除后）
-  const safePage = Math.min(page, totalPages)
-  const pageItems = useMemo(() => {
-    const start = (safePage - 1) * PAGE_SIZE
-    return students.slice(start, start + PAGE_SIZE)
-  }, [students, safePage])
+  const { safePage, totalPages, pageItems, setPage } = usePagination(students, PAGE_SIZE)
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -102,7 +96,7 @@ export function StudentAdmin({ students, studentCourses, busy, onBack, onDelete,
                                 key={c.name}
                                 className={cn(
                                   'px-1.5 py-0.5 text-xs rounded border whitespace-nowrap',
-                                  getCourseCardClass(c.color, c.name),
+                                  getCourseCardClass(c.color),
                                 )}
                               >
                                 {c.name}
@@ -134,30 +128,12 @@ export function StudentAdmin({ students, studentCourses, busy, onBack, onDelete,
             </div>
 
             {/* 分页 */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-                <span className="text-xs text-slate-400">
-                  第 {safePage} / {totalPages} 页 · 每页 {PAGE_SIZE} 条
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={safePage <= 1}
-                    className="btn-ghost border border-slate-200 text-xs py-1 px-2.5 disabled:opacity-40"
-                  >
-                    上一页
-                  </button>
-                  {renderPageButtons(safePage, totalPages, setPage)}
-                  <button
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={safePage >= totalPages}
-                    className="btn-ghost border border-slate-200 text-xs py-1 px-2.5 disabled:opacity-40"
-                  >
-                    下一页
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              page={safePage}
+              totalPages={totalPages}
+              pageSize={PAGE_SIZE}
+              onChange={setPage}
+            />
           </section>
         )}
       </main>
@@ -180,49 +156,6 @@ export function StudentAdmin({ students, studentCourses, busy, onBack, onDelete,
       )}
     </div>
   )
-}
-
-// 渲染页码按钮：始终显示首页、末页、当前页前后 2 页，其余用省略号
-function renderPageButtons(
-  current: number,
-  total: number,
-  setPage: (p: number) => void,
-) {
-  const buttons: (number | '...')[] = []
-  const around = 2
-  for (let i = 1; i <= total; i++) {
-    if (
-      i === 1 ||
-      i === total ||
-      (i >= current - around && i <= current + around)
-    ) {
-      buttons.push(i)
-    } else if (buttons[buttons.length - 1] !== '...') {
-      buttons.push('...')
-    }
-  }
-  return buttons.map((b, idx) => {
-    if (b === '...') {
-      return (
-        <span key={`e${idx}`} className="text-slate-400 text-xs px-1.5 select-none">
-          …
-        </span>
-      )
-    }
-    return (
-      <button
-        key={b}
-        onClick={() => setPage(b)}
-        className={
-          b === current
-            ? 'btn-primary text-xs py-1 px-2.5'
-            : 'btn-ghost border border-slate-200 text-xs py-1 px-2.5'
-        }
-      >
-        {b}
-      </button>
-    )
-  })
 }
 
 // ===== 新增/编辑学员弹窗（共用） =====
@@ -272,62 +205,13 @@ function StudentEditModal({ student, onClose, onSubmit }: StudentEditModalProps)
     'w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 头部 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-xl">
-          <h3 className="font-semibold text-base text-slate-800">
-            {isEdit ? '编辑学员' : '新增学员'}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-            aria-label="关闭"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* 内容 */}
-        <div className="px-5 py-4 space-y-4">
-          {/* 必填说明 */}
-          <div className="text-xs text-slate-400">
-            <span className="text-rose-500">*</span> 为必填项
-          </div>
-
-          {/* 姓名 */}
-          <div className="flex items-start gap-4">
-            <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
-              <span className="text-rose-500 mr-0.5">*</span>姓名
-            </span>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => handleChange('name', e.target.value)}
-              className={inputClass}
-              placeholder="如：张伟"
-              autoFocus
-            />
-          </div>
-
-          {/* 错误提示 */}
-          {error && (
-            <div className="bg-rose-50 border border-rose-200 rounded-md px-3 py-2 text-sm text-rose-700">
-              {error}
-            </div>
-          )}
-        </div>
-
-        {/* 底部操作 */}
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end gap-2 sticky bottom-0">
+    <Modal
+      title={isEdit ? '编辑学员' : '新增学员'}
+      onClose={onClose}
+      size="md"
+      footerAlign="end"
+      footer={
+        <>
           <button onClick={onClose} className="btn-ghost">
             取消
           </button>
@@ -338,8 +222,35 @@ function StudentEditModal({ student, onClose, onSubmit }: StudentEditModalProps)
           >
             {saving ? '保存中…' : isEdit ? '保存' : '新增'}
           </button>
-        </div>
+        </>
+      }
+    >
+      {/* 必填说明 */}
+      <div className="text-xs text-slate-400">
+        <span className="text-rose-500">*</span> 为必填项
       </div>
-    </div>
+
+      {/* 姓名 */}
+      <div className="flex items-start gap-4">
+        <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-2">
+          <span className="text-rose-500 mr-0.5">*</span>姓名
+        </span>
+        <input
+          type="text"
+          value={form.name}
+          onChange={(e) => handleChange('name', e.target.value)}
+          className={inputClass}
+          placeholder="如：张伟"
+          autoFocus
+        />
+      </div>
+
+      {/* 错误提示 */}
+      {error && (
+        <div className="bg-rose-50 border border-rose-200 rounded-md px-3 py-2 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
+    </Modal>
   )
 }

@@ -2,7 +2,7 @@
 // POST /api/mcp —— MCP 客户端（Trae / Claude Desktop / Cursor 等）入口
 //
 // 协议：MCP Streamable HTTP（无会话），单次 POST 独立处理 JSON-RPC 2.0 消息
-// 架构：MCP 客户端 →（HTTPS）→ 本函数 →（函数内直调 _lib/h-*.js 业务逻辑）→ Blob 存储
+// 架构：MCP 客户端 →（HTTPS）→ 本函数 →（函数内直调 _lib/*.js 业务逻辑）→ Blob 存储
 //       不发起 HTTP 自请求，业务校验逻辑与 REST API 完全同源（api/*.js 与本文件复用同一实现）
 //
 // 鉴权（复用环境变量 ADMIN_PASSWORD）：
@@ -10,33 +10,37 @@
 //   （或 Authorization: Bearer <管理员密码>，也兼容 Bearer <token>）
 //   校验通过后本函数签发内部 token 调用鉴权 API；只读公开工具（查学员/查排课/读公告）无需密码
 //
-// 注：业务逻辑统一从 _lib/h-*.js 导入（而非 ./xxx.js api 文件）——EdgeOne 按函数名做方法路由，
+// 注：业务逻辑统一从 _lib/*.js 导入（而非 ./xxx.js api 文件）——EdgeOne 按函数名做方法路由，
 //     若 import api 文件，其 default 导出（onRequestGet/Post/...）会污染本路由 bundle 的方法分发
 // 注：旧版本地 stdio MCP Server 已归档于 mcp-server/（维护模式，不再更新）
 import { getTokenSecret, signToken, verifyPassword, verifyToken } from '../_lib/auth.js'
-import { handleStudentsGet as studentsApi } from '../_lib/h-students.js'
-import { handleSchedulesGet as schedulesApi } from '../_lib/h-schedules.js'
-import { handleSchedulesSearchGet as schedulesSearchApi } from '../_lib/h-schedules-search.js'
-import { handleCoursesGet as coursesApi } from '../_lib/h-courses.js'
-import { handleAnnouncement as announcementApi } from '../_lib/h-announcement.js'
-import { handleCourseAdd as courseAddApi } from '../_lib/h-course-add.js'
-import { handleCourseUpdate as courseUpdateApi } from '../_lib/h-course-update.js'
-import { handleCourseDelete as courseDeleteApi } from '../_lib/h-course-delete.js'
-import { handleStudentAdd as studentAddApi } from '../_lib/h-student-add.js'
-import { handleStudentUpdate as studentUpdateApi } from '../_lib/h-student-update.js'
-import { handleStudentDelete as studentDeleteApi } from '../_lib/h-student-delete.js'
-import { handleScheduleAdd as scheduleAddApi } from '../_lib/h-schedule-add.js'
-import { handleScheduleAddBatch as scheduleAddBatchApi } from '../_lib/h-schedule-add-batch.js'
-import { handleScheduleUpdate as scheduleUpdateApi } from '../_lib/h-schedule-update.js'
-import { handleScheduleAttendance as scheduleAttendanceApi } from '../_lib/h-schedule-attendance.js'
-import { handleScheduleDelete as scheduleDeleteApi } from '../_lib/h-schedule-delete.js'
+import { handleStudentsGet as studentsApi } from '../_lib/students.js'
+import {
+  handleStudentAdd as studentAddApi,
+  handleStudentUpdate as studentUpdateApi,
+  handleStudentDelete as studentDeleteApi,
+} from '../_lib/students.js'
+import { handleCoursesGet as coursesApi } from '../_lib/courses.js'
+import {
+  handleCourseAdd as courseAddApi,
+  handleCourseUpdate as courseUpdateApi,
+  handleCourseDelete as courseDeleteApi,
+} from '../_lib/courses.js'
+import {
+  handleSchedulesGet as schedulesApi,
+  handleSchedulesSearchGet as schedulesSearchApi,
+  handleScheduleAdd as scheduleAddApi,
+  handleScheduleAddBatch as scheduleAddBatchApi,
+  handleScheduleUpdate as scheduleUpdateApi,
+  handleScheduleAttendance as scheduleAttendanceApi,
+  handleScheduleDelete as scheduleDeleteApi,
+} from '../_lib/schedules.js'
+import { handleAnnouncement as announcementApi } from '../_lib/announcement.js'
 
 const SERVER_NAME = 'pai-schedule-mcp'
 const SERVER_VERSION = '2.0.0'
 const DEFAULT_PROTOCOL_VERSION = '2025-03-26'
 const SUPPORTED_PROTOCOL_VERSIONS = ['2024-11-05', '2025-03-26', '2025-06-18']
-// 内部 API 调用的虚拟基址（仅用于构造 URL，不发起真实网络请求）
-const INTERNAL_BASE = 'https://mcp-internal'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -90,11 +94,18 @@ function needToken(ctx) {
 
 // ========== 内部 API 调用（函数内直调，无 HTTP 自请求） ==========
 
-async function callApi(handler, { method = 'GET', path, query, body } = {}, ctx) {
-  const qs = query && Object.keys(query).length ? `?${new URLSearchParams(query)}` : ''
+// 以当前请求的 URL 为基址、仅替换查询参数来构造内部请求。
+// 各 _lib/*.js 处理器只读取 searchParams / method / body / Authorization，不读取路径，
+// 因此无需伪造路径；返回后端统一的 { code, message, data }。
+async function callApi(handler, { method = 'GET', query, body } = {}, ctx) {
+  const url = new URL(ctx.request.url)
+  url.search = ''
+  if (query) {
+    for (const [k, v] of Object.entries(query)) url.searchParams.set(k, String(v))
+  }
   const headers = { 'Content-Type': 'application/json' }
   if (ctx.token) headers['Authorization'] = `Bearer ${ctx.token}`
-  const request = new Request(`${INTERNAL_BASE}${path}${qs}`, {
+  const request = new Request(url, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -168,7 +179,7 @@ const TOOLS = [
     },
     handler: async (a, ctx) =>
       apiResultToTool(
-        await callApi(studentsApi, { path: '/api/students', query: a.q ? { q: a.q } : null }, ctx),
+        await callApi(studentsApi, { query: a.q ? { q: a.q } : null }, ctx),
       ),
   },
   {
@@ -190,7 +201,7 @@ const TOOLS = [
       for (const k of ['studentId', 'studentName', 'startDate', 'endDate']) {
         if (a[k]) query[k] = a[k]
       }
-      return apiResultToTool(await callApi(schedulesApi, { path: '/api/schedules', query }, ctx))
+      return apiResultToTool(await callApi(schedulesApi, { query }, ctx))
     },
   },
   {
@@ -199,7 +210,7 @@ const TOOLS = [
     description: '读取系统公告内容（Markdown 文本）与最后更新时间。',
     inputSchema: { type: 'object', properties: {} },
     handler: async (a, ctx) =>
-      apiResultToTool(await callApi(announcementApi, { path: '/api/announcement' }, ctx)),
+      apiResultToTool(await callApi(announcementApi, {}, ctx)),
   },
   {
     name: 'search_schedules',
@@ -222,7 +233,7 @@ const TOOLS = [
         if (a[k]) query[k] = a[k]
       }
       return apiResultToTool(
-        await callApi(schedulesSearchApi, { path: '/api/schedules-search', query }, ctx),
+        await callApi(schedulesSearchApi, { query }, ctx),
       )
     },
   },
@@ -233,7 +244,7 @@ const TOOLS = [
     inputSchema: { type: 'object', properties: {} },
     handler: async (a, ctx) => {
       needToken(ctx)
-      return apiResultToTool(await callApi(coursesApi, { path: '/api/courses' }, ctx))
+      return apiResultToTool(await callApi(coursesApi, {}, ctx))
     },
   },
   {
@@ -251,7 +262,7 @@ const TOOLS = [
       return apiResultToTool(
         await callApi(
           scheduleAddApi,
-          { method: 'POST', path: '/api/schedule-add', body: { schedule: a.schedule } },
+          { method: 'POST', body: { schedule: a.schedule } },
           ctx,
         ),
       )
@@ -279,7 +290,7 @@ const TOOLS = [
       const body = { ...a }
       // startTime/endTime 缺省时从课程默认时间补齐（courseName/color 不存储，读取时 join 返回）
       if (body.courseId && (!body.startTime || !body.endTime)) {
-        const coursesResult = await callApi(coursesApi, { path: '/api/courses' }, ctx)
+        const coursesResult = await callApi(coursesApi, {}, ctx)
         if (coursesResult.code === 0) {
           const course = (coursesResult.data?.courses || []).find((c) => c.id === body.courseId)
           if (course) {
@@ -296,7 +307,7 @@ const TOOLS = [
       return apiResultToTool(
         await callApi(
           scheduleAddBatchApi,
-          { method: 'POST', path: '/api/schedule-add-batch', body },
+          { method: 'POST', body },
           ctx,
         ),
       )
@@ -317,7 +328,7 @@ const TOOLS = [
       return apiResultToTool(
         await callApi(
           scheduleUpdateApi,
-          { method: 'PUT', path: '/api/schedule-update', body: { old: a.old, new: a.new } },
+          { method: 'PUT', body: { old: a.old, new: a.new } },
           ctx,
         ),
       )
@@ -349,7 +360,6 @@ const TOOLS = [
           scheduleAttendanceApi,
           {
             method: 'PUT',
-            path: '/api/schedule-attendance',
             body: { updates: [{ id: a.id, studentId: a.studentId, date: a.date, attendance: a.attendance }] },
           },
           ctx,
@@ -380,11 +390,7 @@ const TOOLS = [
       return apiResultToTool(
         await callApi(
           scheduleDeleteApi,
-          {
-            method: 'DELETE',
-            path: '/api/schedule-delete',
-            body: { id: a.id, studentId: a.studentId, date: a.date },
-          },
+          { method: 'DELETE', body: { id: a.id, studentId: a.studentId, date: a.date } },
           ctx,
         ),
       )
@@ -405,7 +411,7 @@ const TOOLS = [
       return apiResultToTool(
         await callApi(
           studentAddApi,
-          { method: 'POST', path: '/api/student-add', body: { student: { name: a.name } } },
+          { method: 'POST', body: { student: { name: a.name } } },
           ctx,
         ),
       )
@@ -428,7 +434,7 @@ const TOOLS = [
       return apiResultToTool(
         await callApi(
           studentUpdateApi,
-          { method: 'PUT', path: '/api/student-update', body: { student: { id: a.id, name: a.name } } },
+          { method: 'PUT', body: { student: { id: a.id, name: a.name } } },
           ctx,
         ),
       )
@@ -452,7 +458,7 @@ const TOOLS = [
       return apiResultToTool(
         await callApi(
           studentDeleteApi,
-          { method: 'DELETE', path: '/api/student-delete', body: { studentId: a.studentId } },
+          { method: 'DELETE', body: { studentId: a.studentId } },
           ctx,
         ),
       )
@@ -476,7 +482,7 @@ const TOOLS = [
     handler: async (a, ctx) => {
       needToken(ctx)
       return apiResultToTool(
-        await callApi(courseAddApi, { method: 'POST', path: '/api/course-add', body: { course: a } }, ctx),
+        await callApi(courseAddApi, { method: 'POST', body: { course: a } }, ctx),
       )
     },
   },
@@ -498,7 +504,7 @@ const TOOLS = [
     handler: async (a, ctx) => {
       needToken(ctx)
       return apiResultToTool(
-        await callApi(courseUpdateApi, { method: 'PUT', path: '/api/course-update', body: { course: a } }, ctx),
+        await callApi(courseUpdateApi, { method: 'PUT', body: { course: a } }, ctx),
       )
     },
   },
@@ -520,7 +526,7 @@ const TOOLS = [
       return apiResultToTool(
         await callApi(
           courseDeleteApi,
-          { method: 'DELETE', path: '/api/course-delete', body: { courseId: a.courseId } },
+          { method: 'DELETE', body: { courseId: a.courseId } },
           ctx,
         ),
       )
@@ -542,7 +548,7 @@ const TOOLS = [
       return apiResultToTool(
         await callApi(
           announcementApi,
-          { method: 'POST', path: '/api/announcement', body: { content: a.content } },
+          { method: 'POST', body: { content: a.content } },
           ctx,
         ),
       )
@@ -651,7 +657,7 @@ export default async function onRequest(context) {
   } catch (e) {
     authError = e.message
   }
-  const ctx = { env, token, authError }
+  const ctx = { env, token, authError, request }
 
   // 兼容单条与批量（数组）消息；notifications 不产生响应
   const messages = Array.isArray(payload) ? payload : [payload]

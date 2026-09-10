@@ -8,15 +8,7 @@ import {
   getTokenSecret,
   extractToken,
 } from '../_lib/auth.js'
-import { json } from '../_lib/store.js'
-
-async function readBody(request) {
-  try {
-    return (await request.json()) || {}
-  } catch {
-    return {}
-  }
-}
+import { readBody, json } from '../_lib/http.js'
 
 // 登录：校验密码并签发 token
 async function handleLogin(context) {

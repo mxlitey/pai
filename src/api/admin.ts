@@ -193,14 +193,12 @@ export async function addStudent(
   })
 }
 
-// 更新学员（若姓名变更，后端会级联更新排课中的 studentName）
+// 更新学员（排课不冗余存储姓名，读取时由后端 join 拼回，无需级联更新）
 export async function updateStudent(
   student: Student,
 ): Promise<ApiResult<{
   updated: boolean
   notFound: boolean
-  nameChanged: boolean
-  updatedScheduleFiles: number
   student: Student
 }>> {
   return request(`${API_BASE}/student-update`, {

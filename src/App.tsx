@@ -28,67 +28,49 @@ import { APP_NAME, FOOTER_TEXT, GITHUB_URL } from '@/config'
 // 页面模式：首页 / 日历视图（二级页） / 后台管理
 type PageMode = 'home' | 'calendar' | 'admin'
 
-// 清除 URL 中的 ?s= 参数与 #admin hash（主动返回首页时调用）
-function clearNavState() {
+// 从 URL 解析当前页面（导航状态以 URL 为唯一来源）
+// - #admin 或 #admin/子页面 → 后台管理
+// - #calendar → 日历视图
+// - #home → 首页
+// - 无页面 hash：兼容旧分享链接 /?s=学员id（直达日历），否则首页
+function readPageFromUrl(): PageMode {
   try {
     const url = new URL(window.location.href)
-    let changed = false
-    if (url.searchParams.has('s')) {
-      url.searchParams.delete('s')
-      changed = true
-    }
-    if (url.hash === '#admin' || url.hash.startsWith('#admin/')) {
-      url.hash = ''
-      changed = true
-    }
-    if (changed) {
-      window.history.replaceState({}, '', url.toString())
-    }
+    if (url.hash === '#admin' || url.hash.startsWith('#admin/')) return 'admin'
+    if (url.hash === '#calendar') return 'calendar'
+    if (url.hash === '#home') return 'home'
+    return url.searchParams.get('s') ? 'calendar' : 'home'
   } catch {
-    // 忽略
+    return 'home'
   }
 }
 
-// 写入 #admin hash（进入后台时调用，子页面由 AdminPanel 内部管理）
-function setAdminHash() {
+// 将当前页面与选中学员写回 URL
+// 选中学员存在 ?s= 中：首页据此回显、日历页据此定位，刷新后仍停留在同一页
+function writeNavUrl(page: PageMode, studentId?: string | null) {
   try {
     const url = new URL(window.location.href)
-    // 仅在完全无 hash 或非 admin 时写入基础 #admin
-    if (url.hash !== '#admin' && !url.hash.startsWith('#admin/')) {
-      url.hash = 'admin'
-      window.history.replaceState({}, '', url.toString())
+    if (studentId) url.searchParams.set('s', studentId)
+    else url.searchParams.delete('s')
+    if (page === 'admin') {
+      // 后台子页面 hash（#admin/xxx）由 AdminPanel 管理，此处不覆盖
+      if (!url.hash.startsWith('#admin')) url.hash = 'admin'
+    } else {
+      url.hash = page === 'calendar' ? 'calendar' : 'home'
     }
+    window.history.replaceState({}, '', url.toString())
   } catch {
     // 忽略
   }
 }
 
 export default function App() {
-  // 启动时从 localStorage 恢复上次搜索的学员，实现首页刷新后回显
-  // page 初始值：根据 URL 状态决定，避免刷新时被重置回首页
-  // - #admin 或 #admin/子页面 → 后台管理
-  // - ?s= → 日历视图（学员排课页）
-  // - 其他 → 首页
-  const [page, setPage] = useState<PageMode>(() => {
-    try {
-      const url = new URL(window.location.href)
-      if (url.hash === '#admin' || url.hash.startsWith('#admin/')) return 'admin'
-      if (url.searchParams.get('s')) return 'calendar'
-    } catch {
-      // 忽略
-    }
-    return 'home'
-  })
+  // page 初始值由 URL 决定，刷新后不会被重置
+  const [page, setPage] = useState<PageMode>(readPageFromUrl)
   const [view, setView] = useState<ViewMode>('month')
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(() => {
-    try {
-      const raw = localStorage.getItem('lastStudent')
-      return raw ? (JSON.parse(raw) as Student) : null
-    } catch {
-      return null
-    }
-  })
+  // 当前学员：由 ?s= 加载或搜索选中设置
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
   const [schedules, setSchedules] = useState<Schedule[]>([])
   // 学员的全量排课（不限日期范围，用于推导课程徽章）
   const [allSchedules, setAllSchedules] = useState<Schedule[]>([])
@@ -119,7 +101,7 @@ export default function App() {
   }, [])
 
   // 启动时解析 URL 参数 ?s=学员id，加载该学员信息
-  // page 初始值已根据 ?s 决定，此处仅负责加载学员数据
+  // 首页回显与分享链接直达日历均由此驱动
   useEffect(() => {
     const url = new URL(window.location.href)
     const sid = url.searchParams.get('s')
@@ -129,13 +111,7 @@ export default function App() {
       .then((list) => {
         if (!active) return
         const stu = list.find((s) => s.id === sid)
-        if (!stu) return
-        setSelectedStudent(stu)
-        try {
-          localStorage.setItem('lastStudent', JSON.stringify(stu))
-        } catch {
-          // localStorage 不可用时静默忽略
-        }
+        if (stu) setSelectedStudent(stu)
       })
       .catch(() => {
         // 查不到则忽略，停留在当前页
@@ -145,15 +121,10 @@ export default function App() {
     }
   }, [])
 
-  // 学员切换时同步 URL 的 ?s= 参数（仅在日历页写入，不主动清除）
-  // 清除逻辑由「返回首页」「进入后台」按钮显式触发，避免刷新时误清
+  // 页面 / 选中学员变化时把状态同步回 URL（导航单一来源，刷新后保持一致）
   useEffect(() => {
-    if (selectedStudent && page === 'calendar') {
-      const url = new URL(window.location.href)
-      url.searchParams.set('s', selectedStudent.id)
-      window.history.replaceState({}, '', url.toString())
-    }
-  }, [selectedStudent, page])
+    writeNavUrl(page, selectedStudent?.id)
+  }, [page, selectedStudent?.id])
 
   // 启动时异步加载公告（无需鉴权，不阻塞主流程）
   useEffect(() => {
@@ -241,32 +212,6 @@ export default function App() {
     }
   }, [selectedStudent?.id, dateRange])
 
-  // 选中学员变化时，拉取最新学员信息
-  // 依赖仅 id 字符串，更新为同 id 的新对象不会重触发，避免循环
-  useEffect(() => {
-    if (!selectedStudent?.id) return
-    let active = true
-    searchStudents(selectedStudent.name)
-      .then((list) => {
-        if (!active) return
-        const latest = list.find((s) => s.id === selectedStudent.id)
-        if (latest) {
-          setSelectedStudent(latest)
-          try {
-            localStorage.setItem('lastStudent', JSON.stringify(latest))
-          } catch {
-            // localStorage 不可用时静默忽略
-          }
-        }
-      })
-      .catch(() => {
-        // 刷新失败时静默，保留现有学员信息
-      })
-    return () => {
-      active = false
-    }
-  }, [selectedStudent?.id, selectedStudent?.name])
-
   useEffect(() => {
     loadSchedules()
   }, [loadSchedules])
@@ -283,26 +228,14 @@ export default function App() {
     setView(v)
   }
 
-  // 首页搜索选中学员 → 持久化到 localStorage，停留在首页等待用户点击「查看排课」
+  // 首页搜索选中学员 → 停留在首页等待用户点击「查看排课」
   const handleSelectStudentFromHome = (student: Student) => {
     setSelectedStudent(student)
-    try {
-      localStorage.setItem('lastStudent', JSON.stringify(student))
-    } catch {
-      // localStorage 不可用时静默忽略
-    }
   }
 
-  // 首页搜索框内容变化：清空时清除选中状态与持久化记录
+  // 首页搜索框内容变化：清空时清除选中状态
   const handleHomeQueryChange = (q: string) => {
-    if (!q.trim()) {
-      setSelectedStudent(null)
-      try {
-        localStorage.removeItem('lastStudent')
-      } catch {
-        // 忽略
-      }
-    }
+    if (!q.trim()) setSelectedStudent(null)
   }
 
   // 首页点击「查看排课」→ 跳转日历页加载该学员排课
@@ -333,21 +266,14 @@ export default function App() {
         onSelectStudent={handleSelectStudentFromHome}
         onQueryChange={handleHomeQueryChange}
         onViewSchedule={handleViewSchedule}
-        onEnterAdmin={() => {
-          clearNavState()
-          setAdminHash()
-          setPage('admin')
-        }}
+        onEnterAdmin={() => setPage('admin')}
       />
     )
   }
 
   // 后台管理
   if (page === 'admin') {
-    return <AdminPanel onExit={() => {
-      clearNavState()
-      setPage('home')
-    }} />
+    return <AdminPanel onExit={() => setPage('home')} />
   }
 
   // 日历视图（二级页）
@@ -359,10 +285,7 @@ export default function App() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => {
-                  clearNavState()
-                  setPage('home')
-                }}
+                onClick={() => setPage('home')}
                 className="btn-ghost -ml-2 px-2"
                 title="返回首页"
               >
@@ -399,7 +322,7 @@ export default function App() {
                         key={c.name}
                         className={cn(
                           'px-2 py-0.5 text-xs rounded border whitespace-nowrap',
-                          getCourseCardClass(c.color, c.name),
+                          getCourseCardClass(c.color),
                         )}
                       >
                         {c.name}

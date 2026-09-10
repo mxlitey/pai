@@ -1,8 +1,9 @@
-// 公告 API
-// GET  /api/announcement -> 公开读取公告内容（首页与日历页异步加载）
-// POST /api/announcement -> 保存公告（需鉴权，管理员在后台编辑）
-import { getAnnouncement, saveAnnouncement, json } from './store.js'
+// 公告业务逻辑：公开读取 / 鉴权保存
+import { getAnnouncement, saveAnnouncement } from './store.js'
 import { requireAuth } from './auth.js'
+import { json } from './http.js'
+
+const MAX_CONTENT_LEN = 5000
 
 // 公开读取：无鉴权，前端首屏异步调用
 // 失败时返回空内容，前端按「无公告」处理，不阻塞主流程
@@ -26,14 +27,15 @@ async function handlePost(request) {
   }
   const content = typeof body?.content === 'string' ? body.content : ''
   // 限制单条公告最大长度，避免滥用
-  const MAX_LEN = 5000
-  if (content.length > MAX_LEN) {
-    return json({ code: 1, message: `公告内容过长（最多 ${MAX_LEN} 字）`, data: null }, 400)
+  if (content.length > MAX_CONTENT_LEN) {
+    return json({ code: 1, message: `公告内容过长（最多 ${MAX_CONTENT_LEN} 字）`, data: null }, 400)
   }
   const data = await saveAnnouncement(content)
   return json({ code: 0, message: '公告已保存', data })
 }
 
+// GET /api/announcement  -> 公开读取
+// POST /api/announcement -> 鉴权保存
 export async function handleAnnouncement(context) {
   const { request } = context
   // 预检请求直接放行

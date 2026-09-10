@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import type { Student } from '@/types'
+import { filterStudents } from '@/utils/search'
 
 interface ShareLinksAdminProps {
   students: Student[]
@@ -24,14 +25,7 @@ export function ShareLinksAdmin({ students, onBack }: ShareLinksAdminProps) {
     `${origin}/?s=${encodeURIComponent(s.id)}`
 
   // 搜索过滤：按姓名或 ID 模糊匹配
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return students
-    return students.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) || s.id.toLowerCase().includes(q),
-    )
-  }, [students, search])
+  const filtered = useMemo(() => filterStudents(students, search), [students, search])
 
   // 单条复制（格式与一键复制全部一致：姓名：链接）
   const handleCopy = async (s: Student) => {

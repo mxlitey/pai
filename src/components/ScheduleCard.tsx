@@ -9,7 +9,7 @@ interface ScheduleCardProps {
 }
 
 export function ScheduleCard({ schedule, compact = false, onClick }: ScheduleCardProps) {
-  const colorClass = getCourseCardClass(schedule.color, schedule.courseName)
+  const colorClass = getCourseCardClass(schedule.color)
 
   if (compact) {
     // 月视图中的紧凑卡片

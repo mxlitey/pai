@@ -4,7 +4,7 @@
 //   schedules/{studentId}/{yyyy-MM}.json -> Schedule[]
 //   schedules/{studentId}/_index.json    -> 该学员所有排课月份列表（可选加速）
 import { getStore } from '@edgeone/pages-blob'
-import { genScheduleId } from './id.js'
+import { validateStorageId, validateMonth, validateDate } from './validate.js'
 
 const STORE_NAME = 'schedule-system'
 
@@ -25,14 +25,16 @@ async function withWriteLock(key, fn) {
   const next = new Promise((r) => {
     release = r
   })
-  writeLocks.set(key, prev.then(() => next))
+  // 链尾保存为同一引用，便于 finally 中判断是否已无人排队
+  const chain = prev.then(() => next)
+  writeLocks.set(key, chain)
   await prev.catch(() => {}) // 忽略前一个任务的错误，确保锁链不中断
   try {
     return await fn()
   } finally {
     release()
-    // 清理：若当前链尾仍是 next，说明已无人排队，可删除以释放内存
-    if (writeLocks.get(key) === prev.then(() => next)) {
+    // 清理：若链尾仍是本次的 chain，说明已无人排队，可删除以释放内存
+    if (writeLocks.get(key) === chain) {
       writeLocks.delete(key)
     }
   }
@@ -48,25 +50,7 @@ async function withWriteLocks(keys, fn) {
   return acquire(0)
 }
 
-// ========== 输入校验（防路径遍历） ==========
-// 所有进入 Blob 存储键的标识符必须通过白名单校验，拒绝 ../ // \ 等可越界的字符
-function validateStorageId(id, name = 'id') {
-  if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
-    throw new Error(`${name} 含非法字符（仅允许字母、数字、下划线、短横线，长度 1-64）`)
-  }
-}
-
-function validateMonth(month, name = 'month') {
-  if (typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month)) {
-    throw new Error(`${name} 格式应为 yyyy-MM`)
-  }
-}
-
-function validateDate(date, name = 'date') {
-  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new Error(`${name} 格式应为 yyyy-MM-dd`)
-  }
-}
+// ========== 读取与写入 ==========
 
 // 读取学员列表
 export async function getStudents() {
@@ -212,9 +196,6 @@ export async function batchAddSchedules(schedules) {
     let created = 0
     let skipped = 0
     const errors = []
-    // 批次内已用 id 集合：与各组的 existingIds 共同构成全局唯一性校验
-    // 防止同次请求内重生成 id 时再次碰撞
-    const usedIds = new Set()
 
     // 按学员+月份分组，减少重复读写
     const groups = new Map()
@@ -229,7 +210,6 @@ export async function batchAddSchedules(schedules) {
       const studentId = groupSchedules[0].studentId
       const month = groupSchedules[0].date.slice(0, 7)
       const existing = await getSchedulesByMonth(studentId, month)
-      const existingIds = new Set(existing.map((s) => s.id))
       // 业务级去重：同 学员+日期+courseId+时间段 已存在则跳过。
       // 学员维度已由分组保证，此处键含 courseId 与起止时间
       const existingBizKeys = new Set(
@@ -252,22 +232,8 @@ export async function batchAddSchedules(schedules) {
           skipped++
           continue
         }
-        let id = s.id
-        // 与已有存储 id 或批次内已用 id 碰撞时，重新生成直到全局唯一
-        // 重试上限 100 次兜底（时间戳+计数器+随机后缀碰撞概率极低，理论上不会触发）
-        let guard = 0
-        while ((existingIds.has(id) || usedIds.has(id)) && guard < 100) {
-          id = genScheduleId()
-          guard++
-        }
-        if (existingIds.has(id) || usedIds.has(id)) {
-          errors.push({ studentId: s.studentId, date: s.date, reason: 'id 碰撞重试耗尽' })
-          skipped++
-          continue
-        }
-        existing.push({ ...stripScheduleDenorm(s), id })
-        existingIds.add(id)
-        usedIds.add(id)
+        // 调用方已按落库白名单构造好记录，直接写入
+        existing.push(s)
         existingBizKeys.add(bizKey)
         seenBizKeys.add(bizKey)
         groupCreated++
@@ -435,16 +401,13 @@ function enumerateMonths(startDate, endDate) {
   const months = []
   let [y, m] = startDate.slice(0, 7).split('-').map(Number)
   const [ey, em] = endDate.slice(0, 7).split('-').map(Number)
-  // 安全上限，避免异常输入导致死循环
-  let guard = 0
-  while ((y < ey || (y === ey && m <= em)) && guard < 1200) {
+  while (y < ey || (y === ey && m <= em)) {
     months.push(`${y}-${String(m).padStart(2, '0')}`)
     m++
     if (m > 12) {
       m = 1
       y++
     }
-    guard++
   }
   return months
 }
@@ -507,7 +470,7 @@ export async function updateSchedule(oldSchedule, newSchedule) {
       const list = await getSchedulesByMonth(oldStudentId, oldMonth)
       const idx = list.findIndex((s) => s.id === newSchedule.id)
       if (idx === -1) throw new Error('未找到原排课记录')
-      list[idx] = { ...stripScheduleDenorm(newSchedule) }
+      list[idx] = newSchedule
       await saveSchedulesByMonth(oldStudentId, oldMonth, list)
       return { moved: false, fromKey: oldKey, toKey: newKey }
     }
@@ -527,7 +490,7 @@ export async function updateSchedule(oldSchedule, newSchedule) {
     const newList = await getSchedulesByMonth(newStudentId, newMonth)
     // 去重保护：若新文件已存在同 id 记录则覆盖
     const filteredNew = newList.filter((s) => s.id !== newSchedule.id)
-    filteredNew.push({ ...stripScheduleDenorm(newSchedule) })
+    filteredNew.push(newSchedule)
     // 按日期+时间排序
     filteredNew.sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date)
@@ -568,7 +531,7 @@ export async function addSchedule(schedule) {
       return { created: false, key, exists: false, duplicate: true, existing: dup }
     }
 
-    list.push({ ...stripScheduleDenorm(schedule) })
+    list.push(schedule)
     // 按日期+时间排序
     list.sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date)
@@ -632,10 +595,10 @@ export async function setScheduleAttendance(updates) {
           notFound.push({ id: u.id, studentId: u.studentId, date: u.date })
           continue
         }
-        // 剥离旧记录的反范式字段（存量自然覆盖）；'none' 清除点名标记
-        list[idx] = { ...stripScheduleDenorm(list[idx]) }
-        if (u.attendance === 'none') delete list[idx].attendance
-        else list[idx].attendance = u.attendance
+        // 'none' 清除点名标记（回到未点名），其余写入对应状态
+        const rec = list[idx]
+        if (u.attendance === 'none') delete rec.attendance
+        else rec.attendance = u.attendance
         updatedCount++
         changed = true
       }
@@ -643,17 +606,6 @@ export async function setScheduleAttendance(updates) {
     }
     return { updatedCount, notFound }
   })
-}
-
-// 剥离排课记录的反范式派生字段（studentName / courseName / color）
-// 这些字段不再写入存储，仅由 read 时的 join 拼回；剥离后落盘保持存储最小化
-function stripScheduleDenorm(s) {
-  if (!s || typeof s !== 'object') return s
-  const copy = { ...s }
-  delete copy.studentName
-  delete copy.courseName
-  delete copy.color
-  return copy
 }
 
 // 对外读入口的 join 拼回：为排课记录补上 studentName / courseName / color
@@ -747,17 +699,4 @@ export async function saveAnnouncement(content) {
   }
   await store.set('config/announcement.json', JSON.stringify(payload))
   return payload
-}
-
-// JSON 响应工具
-export function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
-  })
 }

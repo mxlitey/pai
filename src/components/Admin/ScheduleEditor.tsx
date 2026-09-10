@@ -3,6 +3,8 @@ import type { Course, Schedule, Student } from '@/types'
 import { updateSchedule, deleteSchedule } from '@/api/admin'
 import { cn } from '@/utils/cn'
 import { getCourseDotClass } from '@/utils/courseColors'
+import { filterStudents } from '@/utils/search'
+import { Modal } from '@/components/Modal'
 
 interface ScheduleEditorProps {
   schedule: Schedule | null
@@ -167,30 +169,33 @@ export function ScheduleEditor({
     'w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 头部 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-xl">
-          <h3 className="font-semibold text-base text-slate-800">编辑排课</h3>
+    <Modal
+      title="编辑排课"
+      onClose={onClose}
+      footer={
+        <>
           <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-            aria-label="关闭"
+            onClick={handleDelete}
+            disabled={deleting || saving}
+            className="btn text-rose-600 hover:bg-rose-50"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            {deleting ? '删除中…' : '删除排课'}
           </button>
-        </div>
-
-        {/* 内容 */}
-        <div className="px-5 py-4 space-y-4">
+          <div className="flex gap-2">
+            <button onClick={onClose} className="btn-ghost">
+              取消
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || deleting}
+              className={cn('btn-primary', (saving || deleting) && 'opacity-50')}
+            >
+              {saving ? '保存中…' : '保存'}
+            </button>
+          </div>
+        </>
+      }
+    >
           {/* 必填说明 */}
           <div className="text-xs text-slate-400">
             <span className="text-rose-500">*</span> 为必填项
@@ -337,32 +342,7 @@ export function ScheduleEditor({
               ✓ {success}
             </div>
           )}
-        </div>
-
-        {/* 底部操作 */}
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-between sticky bottom-0">
-          <button
-            onClick={handleDelete}
-            disabled={deleting || saving}
-            className="btn text-rose-600 hover:bg-rose-50"
-          >
-            {deleting ? '删除中…' : '删除排课'}
-          </button>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="btn-ghost">
-              取消
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || deleting}
-              className={cn('btn-primary', (saving || deleting) && 'opacity-50')}
-            >
-              {saving ? '保存中…' : '保存'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -389,14 +369,7 @@ function StudentSearchSelect({ students, value, onChange }: StudentSearchSelectP
   )
 
   // 过滤结果：支持按姓名、id 模糊匹配
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return students
-    return students.filter((s) =>
-      s.name.toLowerCase().includes(q) ||
-      s.id.toLowerCase().includes(q),
-    )
-  }, [students, query])
+  const filtered = useMemo(() => filterStudents(students, query), [students, query])
 
   // 重置高亮到第一项
   useEffect(() => {

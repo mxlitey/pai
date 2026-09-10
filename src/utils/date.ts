@@ -11,7 +11,6 @@ import {
   isSameDay,
   isSameMonth,
   parseISO,
-  differenceInCalendarDays,
 } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { CalendarCell, Schedule, ViewMode } from '@/types'
@@ -86,27 +85,9 @@ export function getViewTitle(date: Date, view: ViewMode): string {
   return format(date, 'yyyy年M月d日 EEEE', { locale: zhCN })
 }
 
-// 根据日期范围计算需要加载的月份列表
-export function getMonthsInRange(startDate: Date, endDate: Date): string[] {
-  const months: string[] = []
-  const cur = startOfMonth(startDate)
-  const end = endOfMonth(endDate)
-  let cursor = cur
-  while (cursor <= end) {
-    months.push(formatMonth(cursor))
-    cursor = addMonths(cursor, 1)
-  }
-  return months
-}
-
 // 解析日期字符串
 export function parseDate(dateStr: string): Date {
   return parseISO(dateStr)
-}
-
-// 计算天数差
-export function daysBetween(start: Date, end: Date): number {
-  return differenceInCalendarDays(end, start)
 }
 
 // 获取月份的起止日期

@@ -36,7 +36,7 @@
 - 🔗 **分享链接**：为每位学员生成专属查看链接，家长访问直达日历页
 
 ### 后台管理
-- 👥 **学员管理**：分页表格、新增 / 编辑 / 删除（二次确认）、ID 自动生成、姓名变更级联更新排课
+- 👥 **学员管理**：分页表格、新增 / 编辑 / 删除（二次确认）、ID 自动生成
 - 📚 **课程管理**：10 色颜色标签、默认时段记忆、删除同时清理关联排课
 - 🗂️ **排课管理**：双 tab（按学员 / 按日期+课程筛选）、单条新增、批量新增（日期×学员笛卡尔积）、跨月跨学员迁移
 - ✅ **点名管理**：按日期点名、课程×时段平铺分块、三态标记（到课 / 未点名 / 缺勤）、一键全部到课
@@ -154,7 +154,7 @@ git push -u origin main
 | PUT | `/api/course-update` | 是 | 更新课程 |
 | DELETE | `/api/course-delete` | 是 | 删除课程及所有关联排课 |
 | POST | `/api/student-add` | 是 | 新增学员 |
-| PUT | `/api/student-update` | 是 | 更新学员（姓名变更级联更新排课） |
+| PUT | `/api/student-update` | 是 | 更新学员 |
 | DELETE | `/api/student-delete` | 是 | 删除学员及其所有排课 |
 | POST | `/api/schedule-add` | 是 | 新增单条排课（校验学员存在） |
 | POST | `/api/schedule-add-batch` | 是 | 批量新增排课（日期×学员笛卡尔积） |
@@ -200,15 +200,17 @@ git push -u origin main
 |------|------|------|------|
 | `id` | string | 是 | 唯一标识，服务端由时间戳 + 计数器 + 随机后缀生成，不可自定义 |
 | `studentId` | string | 是 | 关联学员 id，必须存在于学员表 |
-| `studentName` | string | 否 | 学员姓名（冗余存储，学员改名时级联更新；新增时缺省由后端按 studentId 自动补全） |
+| `studentName` | string | 否 | 学员姓名，读取时由后端 join 学员表拼回，不落库 |
 | `courseId` | string | 是（新增） | 关联课程 id，新增时必填且必须存在于课程表；历史数据可能为空 |
-| `courseName` | string | 是 | 课程名称（后端根据 courseId 自动补全，不采信传入值） |
+| `courseName` | string | 是 | 课程名称，读取时由后端 join 课程表拼回，不落库 |
 | `date` | string | 是 | 上课日期，格式 `yyyy-MM-dd` |
 | `startTime` | string | 是（新增） | 开始时间，格式 `HH:mm`；历史数据可能为空串 |
 | `endTime` | string | 是（新增） | 结束时间，格式 `HH:mm`；历史数据可能为空串 |
 | `note` | string | 否 | 备注 |
-| `color` | string | 否 | 颜色标签 key，从课程带过来 |
+| `color` | string | 否 | 颜色标签 key，读取时由课程 join 拼回，不落库 |
 | `attendance` | string | 否 | 点名状态：`attended`=到课 / `absent`=缺勤；字段缺省视为未点名（含历史数据） |
+
+> `studentName` / `courseName` / `color` 为派生字段：不落库，读取时按 `studentId` / `courseId` join 拼回，因此学员或课程改名后无需级联更新排课。
 
 **按月分文件存储设计**：
 - 路径 `schedules/{studentId}/{yyyy-MM}.json`，单次读写仅涉及单月文件
@@ -245,25 +247,15 @@ pai/
 ├── node-functions/                  # 后端 Edge Functions
 │   ├── _lib/
 │   │   ├── auth.js                  # HMAC-SHA256 鉴权、token 签发校验
-│   │   ├── id.js                    # 排课 id 生成器
+│   │   ├── id.js                    # 排课 / 学员 / 课程 id 生成器
 │   │   ├── store.js                 # Blob 存储封装、写锁、数据操作
-│   │   ├── h-students.js            # 学员搜索业务逻辑
-│   │   ├── h-student-add.js         # 新增学员业务逻辑
-│   │   ├── h-student-update.js      # 更新学员业务逻辑
-│   │   ├── h-student-delete.js      # 删除学员业务逻辑
-│   │   ├── h-courses.js             # 课程列表业务逻辑
-│   │   ├── h-course-add.js          # 新增课程业务逻辑
-│   │   ├── h-course-update.js       # 更新课程业务逻辑
-│   │   ├── h-course-delete.js       # 删除课程业务逻辑
-│   │   ├── h-schedules.js           # 排课查询业务逻辑
-│   │   ├── h-schedules-search.js    # 跨学员搜索业务逻辑
-│   │   ├── h-schedule-add.js        # 新增排课业务逻辑
-│   │   ├── h-schedule-add-batch.js  # 批量排课业务逻辑
-│   │   ├── h-schedule-update.js     # 修改排课业务逻辑
-│   │   ├── h-schedule-attendance.js # 点名业务逻辑
-│   │   ├── h-schedule-delete.js     # 删除排课业务逻辑
-│   │   └── h-announcement.js        # 公告业务逻辑
-│   └── api/                         # 薄路由层（业务逻辑在 _lib/h-*），mcp.js 入口
+│   │   ├── http.js                  # 请求体解析与统一 JSON 响应
+│   │   ├── validate.js              # 标识符 / 日期 / 学员 / 课程 / 排课字段校验
+│   │   ├── students.js              # 学员：查询 / 新增 / 更新 / 删除
+│   │   ├── courses.js               # 课程：列表 / 新增 / 更新 / 删除
+│   │   ├── schedules.js             # 排课：查询 / 搜索 / 新增 / 批量 / 修改 / 点名 / 删除
+│   │   └── announcement.js          # 公告：读取 / 保存
+│   └── api/                         # 薄路由层（业务逻辑在 _lib/*），mcp.js 入口
 │       ├── announcement.js          # 公告读取(公开)/保存(鉴权)
 │       ├── auth.js                  # 登录/校验
 │       ├── courses.js               # 课程列表
@@ -297,7 +289,9 @@ pai/
 │   │   │   ├── ScheduleEditor.tsx   # 排课编辑弹窗
 │   │   │   ├── AttendanceAdmin.tsx  # 点名管理
 │   │   │   ├── AnnouncementAdmin.tsx# 公告管理
-│   │   │   └── ShareLinksAdmin.tsx  # 分享链接
+│   │   │   ├── DashboardAdmin.tsx   # 排课看板
+│   │   │   ├── ShareLinksAdmin.tsx  # 分享链接
+│   │   │   └── Pagination.tsx       # 分页条与分页 hook
 │   │   ├── Announcement/
 │   │   │   └── Announcement.tsx     # 公告栏(Markdown 渲染)
 │   │   ├── Calendar/                # 日历视图
@@ -309,9 +303,10 @@ pai/
 │   │   │   └── Home.tsx             # 简洁首页
 │   │   ├── ScheduleCard.tsx         # 排课卡片
 │   │   ├── ScheduleDetail.tsx       # 排课详情弹窗
-│   │   └── SearchBar.tsx            # 学员搜索框
+│   │   ├── SearchBar.tsx            # 学员搜索框
+│   │   └── Modal.tsx                # 通用弹窗外壳
 │   ├── types/index.ts               # TypeScript 类型定义
-│   ├── utils/                       # 工具函数
+│   ├── utils/                       # 工具函数（date / courseColors / search / cn）
 │   ├── config.ts                    # 环境变量集中导出
 │   ├── App.tsx                      # 应用根组件
 │   └── main.tsx                     # React 入口
@@ -335,7 +330,7 @@ pai/
 项目内置云端 MCP（Model Context Protocol）服务器（[`node-functions/api/mcp.js`](node-functions/api/mcp.js)），与后端同域部署、随 Git 推送自动上线，客户端无需本地安装任何依赖，只需一个 URL 即可接入，供 Trae、Claude Desktop、Cursor 等支持 MCP 的客户端调用。
 
 - **传输方式**：Streamable HTTP（无状态），入口 `https://<你的域名>/api/mcp`
-- **架构**：MCP 客户端 →（HTTPS + 密码请求头）→ 边缘函数 `mcp.js` →（函数内直调 `_lib/h-*.js` 业务逻辑）→ EdgeOne Blob 存储，业务校验与 REST API 完全同源
+- **架构**：MCP 客户端 →（HTTPS + 密码请求头）→ 边缘函数 `mcp.js` →（函数内直调 `_lib/*.js` 业务逻辑）→ EdgeOne Blob 存储，业务校验与 REST API 完全同源
 - **鉴权**：复用环境变量 `ADMIN_PASSWORD`。只读工具（查学员 / 查排课 / 读公告）公开可用，与前端分享链接安全模型一致；其余工具需在客户端配置请求头 `X-Admin-Password`（值同后台登录密码）
 - **依赖**：客户端零依赖，服务端无新增依赖
 
