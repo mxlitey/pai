@@ -1,11 +1,10 @@
-// 排课业务逻辑：查询 / 跨学员搜索 / 新增 / 批量新增 / 修改 / 点名 / 删除
+// 排课业务逻辑：查询 / 跨学员搜索 / 批量新增 / 修改 / 点名 / 删除
 import {
   getStudents,
   getCourses,
   getAllSchedulesByStudent,
   getSchedulesByDateRange,
   searchSchedules,
-  addSchedule,
   batchAddSchedules,
   updateSchedule,
   setScheduleAttendance,
@@ -18,7 +17,6 @@ import {
   DATE_RE,
   ID_RE,
   TIME_RE,
-  validateScheduleForAdd,
   validateScheduleForUpdate,
   validateAttendanceUpdate,
 } from './validate.js'
@@ -99,80 +97,6 @@ export async function handleSchedulesSearchGet(context) {
   } catch (e) {
     console.error('[schedules-search] 查询异常:', e?.message || String(e))
     return json({ code: 1, message: '查询失败，请稍后重试', data: null }, 500)
-  }
-}
-
-// POST /api/schedule-add  body: { schedule }
-// courseName 由后端根据 courseId 自动补全（不采信传入值）；startTime/endTime 必填
-export async function handleScheduleAdd(context) {
-  const authFail = await requireAuth(context)
-  if (authFail) return authFail
-  const body = await readBody(context.request)
-  const { schedule } = body
-
-  if (!schedule) {
-    return json({ code: 1, message: '请求体需包含 schedule 字段', data: null }, 400)
-  }
-
-  try {
-    validateScheduleForAdd(schedule)
-  } catch (e) {
-    return json({ code: 1, message: e.message, data: null }, 400)
-  }
-
-  try {
-    // 跨表关联校验：studentId 必须在学员表中存在
-    const students = await getStudents()
-    if (!students.some((s) => s.id === schedule.studentId)) {
-      return json(
-        { code: 1, message: `studentId="${schedule.studentId}" 在学员表中不存在`, data: null },
-        400,
-      )
-    }
-
-    // courseId 必须在课程表中存在
-    const courses = await getCourses()
-    if (!courses.some((c) => c.id === schedule.courseId)) {
-      return json(
-        { code: 1, message: `courseId="${schedule.courseId}" 在课程表中不存在`, data: null },
-        400,
-      )
-    }
-
-    // 落库字段白名单：显示字段（studentName/courseName/color）由读取时 join 拼回，不落库；
-    // 新增排课一律从「未点名」开始，id 由服务端自动生成
-    const finalSchedule = {
-      id: genScheduleId(),
-      studentId: schedule.studentId,
-      courseId: schedule.courseId,
-      date: schedule.date,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-      note: schedule.note || '',
-    }
-
-    const result = await addSchedule(finalSchedule)
-    if (result.duplicate) {
-      return json(
-        {
-          code: 1,
-          message: `该学员 ${finalSchedule.date} ${finalSchedule.startTime}-${finalSchedule.endTime} 已有此课程的排课，未重复新增`,
-          data: { duplicate: true, existing: result.existing },
-        },
-        409,
-      )
-    }
-    if (result.exists) {
-      return json(
-        { code: 1, message: `排课 id="${schedule.id}" 已存在，不可重复新增`, data: null },
-        409,
-      )
-    }
-    return json({ code: 0, message: '排课已新增', data: { ...result, schedule: finalSchedule } })
-  } catch (e) {
-    // 仅记录日志，不向客户端回显内部异常
-    console.error('[schedule-add] 新增异常:', e?.message || String(e))
-    return json({ code: 1, message: '新增失败，请稍后重试', data: null }, 500)
   }
 }
 
@@ -258,10 +182,7 @@ export async function handleScheduleAddBatch(context) {
     }))
     return json({
       code: 0,
-      message:
-        `已新增 ${result.created} 条排课（课程「${finalCourseName}」${startTime}-${endTime}，学员：${studentSummary.map((s) => s.studentName).join('、')}）` +
-        (result.skipped > 0 ? `，跳过 ${result.skipped} 条重复` : '') +
-        '。请核对学员名单是否与预期一致。',
+      message: `新增 ${result.created} 条排课，失败 ${result.skipped} 条排课。`,
       data: {
         ...result,
         totalAttempts: schedules.length,

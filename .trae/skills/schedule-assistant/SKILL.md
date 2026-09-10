@@ -19,8 +19,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - `list_courses()` — 课程列表（含颜色、默认上下课时间）
 
 **写操作（需鉴权）**
-- `add_schedule({schedule})` — 新增单条排课（startTime/endTime 必填）
-- `batch_add_schedules({courseId, dates[], studentIds[], startTime?, endTime?, note?})` — 多学员×多日期批量排课；时间缺省自动取课程默认时间，课程无默认时间则报错；业务级去重：同学员+同日+同 courseId+同时段已存在时自动跳过并计入 `skipped`
+- `batch_add_schedules({courseId, dates[], studentIds[], startTime?, endTime?, note?})` — 新增排课（单条即传 1 日期 × 1 学员；多学员×多日期为笛卡尔积）；时间缺省自动取课程默认时间，课程无默认时间则报错；业务级去重：同学员+同日+同 courseId+同时段已存在时自动跳过并计入 `skipped`，重复项在 `errors[].existing` 回传已存在记录
 - `update_schedule({old, new})` — 修改排课（old 为原完整记录，new 为修改后完整记录，id 必须一致；支持跨学员/跨月迁移）
 - `set_attendance({id, studentId, date, attendance})` — 点名：attended=到课 / absent=缺勤 / none=清除回到未点名
 - `delete_schedule({confirm, id, studentId, date})` — 删单条排课
@@ -144,7 +143,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 - "管理密码错误" → 检查 MCP 配置中的 `X-Admin-Password` 是否正确
 - 无法连接 MCP 端点 → 检查云端部署状态与 URL（`https://<域名>/api/mcp`）
 - 看板脚本报"未提供数据"/"数据缺少 schedules 数组" → 未传入或 JSON 格式不对，按工作流 6 先取数写入 JSON 再执行
-- `batch_add_schedules` 返回 errors → 逐条说明失败原因（如 id 碰撞），建议重试
+- `batch_add_schedules` 返回 errors / `skipped` → 逐条说明失败原因；重复排课会在 `errors[].existing` 给出已存在的记录，据此告知用户"该时段已有此课"，不要重复新增
 
 ## 历史数据说明
 

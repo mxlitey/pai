@@ -29,7 +29,6 @@ import {
 import {
   handleSchedulesGet as schedulesApi,
   handleSchedulesSearchGet as schedulesSearchApi,
-  handleScheduleAdd as scheduleAddApi,
   handleScheduleAddBatch as scheduleAddBatchApi,
   handleScheduleUpdate as scheduleUpdateApi,
   handleScheduleAttendance as scheduleAttendanceApi,
@@ -152,7 +151,7 @@ const scheduleSchema = {
   type: 'object',
   description: '排课记录',
   properties: {
-    id: { type: 'string', description: '排课记录唯一 ID（新增时可留空由系统生成；更新时必填）' },
+    id: { type: 'string', description: '排课记录唯一 ID（更新时必填）' },
     studentId: studentIdSchema,
     studentName: { type: 'string', description: '学员姓名' },
     courseId: { type: 'string', description: '课程 ID（新增时必填且须为已存在课程的 ID）' },
@@ -248,31 +247,10 @@ const TOOLS = [
     },
   },
   {
-    name: 'add_schedule',
-    title: '新增单条排课',
-    description:
-      '为单个学员新增一条排课记录。startTime/endTime 必填（不会自动套用课程默认时间，需要时先 list_courses 查询）；同学员同日同时段同课程已存在时返回 409 不重复写入。需管理密码。',
-    inputSchema: {
-      type: 'object',
-      properties: { schedule: scheduleSchema },
-      required: ['schedule'],
-    },
-    handler: async (a, ctx) => {
-      needToken(ctx)
-      return apiResultToTool(
-        await callApi(
-          scheduleAddApi,
-          { method: 'POST', body: { schedule: a.schedule } },
-          ctx,
-        ),
-      )
-    },
-  },
-  {
     name: 'batch_add_schedules',
     title: '批量排课（多学员 × 多日期）',
     description:
-      '为多个学员在多个日期批量排同一门课（dates × studentIds 笛卡尔积）。startTime/endTime 缺省时自动取课程默认上下课时间（课程未配置默认时间则报错）；同学员同日同时段同课程已存在时自动跳过并计入 skipped。需管理密码。',
+      '为多个学员在多个日期批量排同一门课（dates × studentIds 笛卡尔积）。startTime/endTime 缺省时自动取课程默认上下课时间（课程未配置默认时间则报错）；同学员同日同时段同课程已存在时自动跳过并计入 skipped，重复项在 errors[].existing 中回传已存在的排课记录。需管理密码。',
     inputSchema: {
       type: 'object',
       properties: {

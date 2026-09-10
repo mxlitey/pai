@@ -196,6 +196,7 @@ export async function batchAddSchedules(schedules) {
     let created = 0
     let skipped = 0
     const errors = []
+    const createdSchedules = []
 
     // 按学员+月份分组，减少重复读写
     const groups = new Map()
@@ -212,15 +213,16 @@ export async function batchAddSchedules(schedules) {
       const existing = await getSchedulesByMonth(studentId, month)
       // 业务级去重：同 学员+日期+courseId+时间段 已存在则跳过。
       // 学员维度已由分组保证，此处键含 courseId 与起止时间
-      const existingBizKeys = new Set(
-        existing.map((s) => `${s.date}|${s.courseId}|${s.startTime}|${s.endTime}`),
+      // 业务键 → 记录 映射：既用于去重，也用于在重复时把已存在的记录回传给调用方
+      const existingBizMap = new Map(
+        existing.map((s) => [`${s.date}|${s.courseId}|${s.startTime}|${s.endTime}`, s]),
       )
-      const seenBizKeys = new Set() // 同批次内防重（dates 数组可能含重复日期）
 
       let groupCreated = 0
       for (const s of groupSchedules) {
         const bizKey = `${s.date}|${s.courseId}|${s.startTime}|${s.endTime}`
-        if (existingBizKeys.has(bizKey) || seenBizKeys.has(bizKey)) {
+        const dup = existingBizMap.get(bizKey)
+        if (dup) {
           errors.push({
             studentId: s.studentId,
             date: s.date,
@@ -228,14 +230,15 @@ export async function batchAddSchedules(schedules) {
             startTime: s.startTime,
             endTime: s.endTime,
             reason: '重复排课：该学员当天此时段已有此课程',
+            existing: dup,
           })
           skipped++
           continue
         }
         // 调用方已按落库白名单构造好记录，直接写入
         existing.push(s)
-        existingBizKeys.add(bizKey)
-        seenBizKeys.add(bizKey)
+        existingBizMap.set(bizKey, s)
+        createdSchedules.push(s)
         groupCreated++
         created++
       }
@@ -251,7 +254,7 @@ export async function batchAddSchedules(schedules) {
       await saveSchedulesByMonth(studentId, month, existing)
     }
 
-    return { created, skipped, errors }
+    return { created, skipped, errors, createdSchedules }
   })
 }
 
@@ -499,46 +502,6 @@ export async function updateSchedule(oldSchedule, newSchedule) {
     await saveSchedulesByMonth(newStudentId, newMonth, filteredNew)
 
     return { moved: true, fromKey: oldKey, toKey: newKey }
-  })
-}
-
-// 新增单条排课记录
-// 去重保护：同 id 已存在则拒绝（exists:true）；同 学员+日期+courseId+时间段 已存在也拒绝（duplicate:true）
-// 返回 { created:boolean, key, exists:boolean, duplicate?:boolean, existing?:Schedule }
-export async function addSchedule(schedule) {
-  const studentId = schedule.studentId
-  const month = schedule.date.slice(0, 7)
-  const key = `schedules/${studentId}/${month}.json`
-
-  validateStorageId(studentId, 'studentId')
-  validateDate(schedule.date, 'date')
-
-  return withWriteLock(`schedule:${studentId}:${month}`, async () => {
-    const list = await getSchedulesByMonth(studentId, month)
-    // 去重保护：同 id 已存在则拒绝
-    if (list.some((s) => s.id === schedule.id)) {
-      return { created: false, key, exists: true }
-    }
-    // 业务级去重：同 日期+courseId+时间段 已存在则拒绝
-    const dup = list.find(
-      (s) =>
-        s.date === schedule.date &&
-        s.courseId === schedule.courseId &&
-        s.startTime === schedule.startTime &&
-        s.endTime === schedule.endTime,
-    )
-    if (dup) {
-      return { created: false, key, exists: false, duplicate: true, existing: dup }
-    }
-
-    list.push(schedule)
-    // 按日期+时间排序
-    list.sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date)
-      return (a.startTime || '').localeCompare(b.startTime || '')
-    })
-    await saveSchedulesByMonth(studentId, month, list)
-    return { created: true, key, exists: false }
   })
 }
 

@@ -54,19 +54,6 @@ export function validateCourse(c, { requireId = false } = {}) {
   if (!TIME_RE.test(c.defaultEndTime)) throw new Error('defaultEndTime 格式应为 HH:mm')
 }
 
-// 新增排课校验：courseId 必填且需为时段（courseName 由后端补全，不校验）
-export function validateScheduleForAdd(s) {
-  if (!s) throw new Error('排课数据不能为空')
-  if (!s.studentId) throw new Error('缺少 studentId')
-  if (!s.courseId) throw new Error('缺少 courseId（courseName 由后端自动补全）')
-  if (!s.date) throw new Error('缺少 date')
-  if (!DATE_RE.test(s.date)) throw new Error('date 格式应为 yyyy-MM-dd')
-  if (!s.startTime) throw new Error('缺少 startTime（开始时间为必填项）')
-  if (!s.endTime) throw new Error('缺少 endTime（结束时间为必填项）')
-  if (!TIME_RE.test(s.startTime)) throw new Error('startTime 格式应为 HH:mm')
-  if (!TIME_RE.test(s.endTime)) throw new Error('endTime 格式应为 HH:mm')
-}
-
 // 更新排课校验：历史记录可能无 courseId，故校验 courseName 而非 courseId
 export function validateScheduleForUpdate(s, prefix) {
   if (!s) throw new Error(`${prefix}: 数据不能为空`)
