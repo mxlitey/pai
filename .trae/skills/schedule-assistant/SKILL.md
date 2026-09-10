@@ -5,7 +5,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 
 # 排课助手（Schedule Assistant）
 
-通过云端 `pai-schedule` MCP server（`https://<域名>/api/mcp`，写操作需在请求头配置 `X-Admin-Password`）的 17 个工具管理排课日历系统。排课数据全部经 MCP 工具读写；签到表解析与看板渲染由本 skill 自带本地脚本完成。本文档定义字段规范、标准工作流与安全边界。
+通过云端 `pai-schedule` MCP server（`https://<域名>/api/mcp`，写操作需在请求头配置 `X-Admin-Password`）的 16 个工具管理排课日历系统。排课数据全部经 MCP 工具读写；签到表解析与看板渲染由本 skill 自带本地脚本完成。本文档定义字段规范、标准工作流与安全边界。
 
 ## 工具清单
 
@@ -36,7 +36,7 @@ description: "排课日历管理助手：通过 pai-schedule MCP 工具完成排
 | `studentId`/`courseId` | `[A-Za-z0-9_-]{1,64}` | `s001` |
 | `month` | `yyyy-MM` | `2026-09` |
 
-- `Schedule` 对象：`id?`, `studentId`(必填), `studentName`(后端补全), `courseId`(必填), `courseName`(后端根据 courseId 补全，不采信传入值), `date`, `startTime`/`endTime`(写操作必填), `note?`, `color?`(缺省取课程颜色), `attendance?`(attended=到课 / absent=缺勤，缺省=未点名；由 `set_attendance` 设置，新增/修改排课时不传)
+- `Schedule` 对象：`id?`, `studentId`(必填), `studentName`(后端补全), `courseId`(必填), `courseName`(后端根据 courseId 补全，不采信传入值), `date`, `startTime`/`endTime`(批量排课可缺省，缺省时取课程默认时间), `note?`, `color?`(缺省取课程颜色), `attendance?`(attended=到课 / absent=缺勤，缺省=未点名；由 `set_attendance` 设置，新增/修改排课时不传)
 - 用户说"下周三"等相对日期时，先换算为绝对日期再调用工具
 
 ## 标准工作流
