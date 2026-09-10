@@ -131,21 +131,6 @@ export async function updateSchedule(
   })
 }
 
-// 新增排课
-export async function addSchedule(
-  schedule: Schedule,
-): Promise<ApiResult<{
-  created: boolean
-  key: string
-  exists: boolean
-  schedule: Schedule
-}>> {
-  return request(`${API_BASE}/schedule-add`, {
-    method: 'POST',
-    body: JSON.stringify({ schedule }),
-  })
-}
-
 // 删除排课
 export async function deleteSchedule(
   id: string,
@@ -267,7 +252,25 @@ export async function batchAddSchedules(body: {
   endTime?: string
   note?: string
   studentIds: string[]
-}): Promise<ApiResult<{ created: number; skipped: number; errors: string[]; totalAttempts?: number }>> {
+}): Promise<
+  ApiResult<{
+    created: number
+    skipped: number
+    // 新增成功的排课记录（含服务端生成的 id）
+    createdSchedules: Schedule[]
+    // 失败（重复）项：existing 为已存在的排课记录
+    errors: {
+      studentId: string
+      date: string
+      courseId?: string
+      startTime?: string
+      endTime?: string
+      reason: string
+      existing?: Schedule
+    }[]
+    totalAttempts?: number
+  }>
+> {
   return request(`${API_BASE}/schedule-add-batch`, {
     method: 'POST',
     body: JSON.stringify(body),

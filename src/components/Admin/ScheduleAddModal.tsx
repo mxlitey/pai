@@ -28,7 +28,11 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
   const [saving, setSaving] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  // 提交结果（新增 / 失败明细），非空时展示结果弹窗
+  const [result, setResult] = useState<{
+    createdItems: { studentId: string; id: string }[]
+    failedItems: { studentId: string; id: string }[]
+  } | null>(null)
 
   // 选中的课程对象
   const selectedCourse = useMemo(
@@ -57,7 +61,6 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
     }
     setSelectedStudentIds(new Set())
     setError('')
-    setSuccess('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId])
 
@@ -87,13 +90,11 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
       return next
     })
     setError('')
-    setSuccess('')
   }
 
   // 批量添加日期（从日历多选后一次性提交）
   const handleAddDates = (newDates: string[]) => {
     setError('')
-    setSuccess('')
     setDates((prev) => {
       const set = new Set(prev)
       for (const d of newDates) {
@@ -111,7 +112,6 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
 
   const handleSave = async () => {
     setError('')
-    setSuccess('')
 
     if (!courseId || !selectedCourse) {
       setError('请选择课程')
@@ -136,7 +136,7 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
 
     setSaving(true)
     try {
-      const result = await batchAddSchedules({
+      const res = await batchAddSchedules({
         courseId, // 课程名称/颜色由后端根据 courseId 自动 join 返回，前端无需也无需提交
         dates,
         startTime,
@@ -144,16 +144,25 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
         note,
         studentIds: Array.from(selectedStudentIds),
       })
-      if (result.code === 0) {
-        const msg = `已新增 ${result.data.created} 条排课` + (result.data.skipped > 0 ? `，跳过 ${result.data.skipped} 条重复` : '')
-        setSuccess(msg)
+      if (res.code === 0) {
+        // 弹窗展示本次新增 / 失败明细
+        setResult({
+          createdItems: res.data.createdSchedules.map((s) => ({
+            studentId: s.studentId,
+            id: s.id,
+          })),
+          failedItems: res.data.errors.map((e) => ({
+            studentId: e.studentId,
+            id: e.existing?.id || '',
+          })),
+        })
         // 连续新增：清空日期与已选学员，避免下一次误把上一次的学员再次排课
         setDates([])
         setSelectedStudentIds(new Set())
         // 通知父组件刷新数据
         onUpdated()
       } else {
-        setError(result.message)
+        setError(res.message)
       }
     } catch (e) {
       setError('请求失败：' + (e as Error).message)
@@ -165,10 +174,10 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
   const inputClass =
     'w-full px-3 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent'
 
-  return (
+  const formModal = (
     <Modal
       title="新增排课"
-      subtitle="支持多日期 + 多学员批量排课，保存后不关窗可继续新增"
+      subtitle="支持多日期 + 多学员批量排课，提交后不关窗可继续新增"
       onClose={onClose}
       footer={
         <>
@@ -180,9 +189,7 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
             disabled={saving}
             className={cn('btn-primary', saving && 'opacity-50')}
           >
-            {saving
-              ? '保存中…'
-              : `新增排课${dates.length * selectedStudentIds.size > 0 ? `（${dates.length} 日 × ${selectedStudentIds.size} 人 = ${dates.length * selectedStudentIds.size} 条）` : ''}`}
+            {saving ? '提交中…' : '提交'}
           </button>
         </>
       }
@@ -398,18 +405,46 @@ export function ScheduleAddModal({ courses, students, onClose, onUpdated, onRefr
             />
           </div>
 
-          {/* 错误/成功提示 */}
+          {/* 错误提示 */}
           {error && (
             <div className="bg-rose-50 border border-rose-200 rounded-md px-3 py-2 text-sm text-rose-700">
               {error}
             </div>
           )}
-          {success && (
-            <div className="bg-green-50 border border-green-200 rounded-md px-3 py-2 text-sm text-green-700">
-              ✓ {success}
+    </Modal>
+  )
+
+  return (
+    <>
+      {formModal}
+
+      {/* 提交结果弹窗：新增排课 / 失败排课明细 */}
+      {result && (
+        <Modal
+          title="排课结果"
+          onClose={() => setResult(null)}
+          footerAlign="end"
+          footer={
+            <button onClick={() => setResult(null)} className="btn-primary">
+              我知道了
+            </button>
+          }
+        >
+          {result.createdItems.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-slate-700">新增排课</h4>
+              <ResultTable rows={result.createdItems} idLabel="排课 ID" students={students} />
             </div>
           )}
-    </Modal>
+          {result.failedItems.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-slate-700">失败排课</h4>
+              <ResultTable rows={result.failedItems} idLabel="重复排课 ID" students={students} />
+            </div>
+          )}
+        </Modal>
+      )}
+    </>
   )
 }
 
@@ -582,6 +617,43 @@ function MultiDateCalendar({ committedDates, onAddDates, onRemoveDate, onClose }
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ========== 提交结果表格 ==========
+// 两列：学员姓名 + 排课 id（失败项展示重复排课 id）
+function ResultTable({
+  rows,
+  idLabel,
+  students,
+}: {
+  rows: { studentId: string; id: string }[]
+  idLabel: string
+  students: Student[]
+}) {
+  const nameOf = (studentId: string) =>
+    students.find((s) => s.id === studentId)?.name || studentId
+  return (
+    <div className="border border-slate-200 rounded-md overflow-hidden">
+      <table className="w-full text-sm">
+        <thead className="bg-slate-50 text-slate-500 text-xs">
+          <tr>
+            <th className="text-left py-1.5 px-3 font-medium">学员姓名</th>
+            <th className="text-left py-1.5 px-3 font-medium">{idLabel}</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((r, i) => (
+            <tr key={`${r.studentId}-${r.id}-${i}`}>
+              <td className="py-1.5 px-3 text-slate-700">{nameOf(r.studentId)}</td>
+              <td className="py-1.5 px-3 text-xs font-mono text-slate-500 break-all">
+                {r.id || '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
