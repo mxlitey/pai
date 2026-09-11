@@ -1,7 +1,9 @@
 import type { Schedule } from '@/types'
-import { getMonthCells, WEEKDAYS } from '@/utils/date'
+import { getMonthCells } from '@/utils/date'
 import { cn } from '@/utils/cn'
 import { ScheduleCard } from '../ScheduleCard'
+import { useI18n } from '@/i18n'
+import { WEEKDAY_LABELS } from '@/i18n/messages'
 
 interface MonthViewProps {
   currentDate: Date
@@ -11,6 +13,8 @@ interface MonthViewProps {
 
 export function MonthView({ currentDate, schedules, onScheduleClick }: MonthViewProps) {
   const cells = getMonthCells(currentDate, schedules)
+  const { lang, t } = useI18n()
+  const weekdays = WEEKDAY_LABELS[lang]
   const today = new Date()
 
   return (
@@ -19,12 +23,12 @@ export function MonthView({ currentDate, schedules, onScheduleClick }: MonthView
       <div className="hidden sm:block">
         {/* 星期表头 */}
         <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-          {WEEKDAYS.map((day) => (
+          {weekdays.map((day) => (
             <div
               key={day}
               className="py-2 text-center text-xs font-medium text-slate-500"
             >
-              周{day}
+              {t('weekHeaderPrefix')}{day}
             </div>
           ))}
         </div>
@@ -62,7 +66,7 @@ export function MonthView({ currentDate, schedules, onScheduleClick }: MonthView
                   </span>
                   {cell.schedules.length > 0 && cell.isCurrentMonth && (
                     <span className="text-[10px] text-slate-400">
-                      {cell.schedules.length}节
+                      {cell.schedules.length}{t('monthLessonShort')}
                     </span>
                   )}
                 </div>
@@ -77,7 +81,7 @@ export function MonthView({ currentDate, schedules, onScheduleClick }: MonthView
                   ))}
                   {cell.schedules.length > 3 && (
                     <div className="text-[10px] text-slate-400 pl-1">
-                      +{cell.schedules.length - 3} 更多
+                      +{cell.schedules.length - 3} {t('monthMore')}
                     </div>
                   )}
                 </div>
@@ -91,19 +95,19 @@ export function MonthView({ currentDate, schedules, onScheduleClick }: MonthView
       <div className="sm:hidden">
         {/* 顶部滑动提示 */}
         <div className="px-3 py-2 text-center text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
-          ← 左右滑动查看更多日期 →
+          {t('monthSwipe')}
         </div>
         {/* 横向滚动容器：日历整体宽度 770px，超出屏宽可滑动 */}
         <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
           <div className="min-w-[770px]">
             {/* 星期表头 */}
             <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-              {WEEKDAYS.map((day) => (
+              {weekdays.map((day) => (
                 <div
                   key={day}
                   className="py-2 text-center text-xs font-medium text-slate-500"
                 >
-                  周{day}
+                  {t('weekHeaderPrefix')}{day}
                 </div>
               ))}
             </div>
@@ -140,7 +144,7 @@ export function MonthView({ currentDate, schedules, onScheduleClick }: MonthView
                       </span>
                       {cell.schedules.length > 0 && cell.isCurrentMonth && (
                         <span className="text-[10px] text-slate-400">
-                          {cell.schedules.length}节
+                          {cell.schedules.length}{t('monthLessonShort')}
                         </span>
                       )}
                     </div>
@@ -155,7 +159,7 @@ export function MonthView({ currentDate, schedules, onScheduleClick }: MonthView
                       ))}
                       {cell.schedules.length > 3 && (
                         <div className="text-[10px] text-slate-400 pl-1">
-                          +{cell.schedules.length - 3} 更多
+                          +{cell.schedules.length - 3} {t('monthMore')}
                         </div>
                       )}
                     </div>

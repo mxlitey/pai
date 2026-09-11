@@ -12,10 +12,9 @@ import {
   isSameMonth,
   parseISO,
 } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import type { Locale } from 'date-fns/locale'
 import type { CalendarCell, Schedule, ViewMode } from '@/types'
-
-export const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
+import type { Lang } from '@/i18n/messages'
 
 // 格式化日期为 yyyy-MM-dd
 export function formatDate(date: Date): string {
@@ -71,18 +70,24 @@ export function navigateDate(date: Date, view: ViewMode, direction: 'prev' | 'ne
   return addDays(date, delta)
 }
 
-// 获取视图标题
-export function getViewTitle(date: Date, view: ViewMode): string {
-  if (view === 'month') return format(date, 'yyyy年M月', { locale: zhCN })
+// 获取视图标题（公开页多语言：中英文格式串不同，locale 由调用方注入）
+export function getViewTitle(date: Date, view: ViewMode, locale: Locale, lang: Lang): string {
+  if (view === 'month') {
+    return format(date, lang === 'zh' ? 'yyyy年M月' : 'MMMM yyyy', { locale })
+  }
   if (view === 'week') {
     const weekStart = startOfWeek(date, { weekStartsOn: 1 })
     const weekEnd = endOfWeek(date, { weekStartsOn: 1 })
     if (isSameMonth(weekStart, weekEnd)) {
-      return `${format(weekStart, 'yyyy年M月', { locale: zhCN })} ${format(weekStart, 'd')}-${format(weekEnd, 'd')}日`
+      return lang === 'zh'
+        ? `${format(weekStart, 'yyyy年M月', { locale })} ${format(weekStart, 'd')}-${format(weekEnd, 'd')}日`
+        : `${format(weekStart, 'MMMM d', { locale })} - ${format(weekEnd, 'd', { locale })}`
     }
-    return `${format(weekStart, 'yyyy年M月d日', { locale: zhCN })} - ${format(weekEnd, 'M月d日', { locale: zhCN })}`
+    return lang === 'zh'
+      ? `${format(weekStart, 'yyyy年M月d日', { locale })} - ${format(weekEnd, 'M月d日', { locale })}`
+      : `${format(weekStart, 'MMM d yyyy', { locale })} - ${format(weekEnd, 'MMM d', { locale })}`
   }
-  return format(date, 'yyyy年M月d日 EEEE', { locale: zhCN })
+  return format(date, lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMM d, yyyy', { locale })
 }
 
 // 解析日期字符串

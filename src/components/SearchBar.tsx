@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import type { Student } from '@/types'
 import { searchStudents } from '@/api'
 import { cn } from '@/utils/cn'
+import { useI18n } from '@/i18n'
 
 interface SearchBarProps {
   onSelectStudent: (student: Student) => void
@@ -12,6 +13,7 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ onSelectStudent, initialValue, onQueryChange }: SearchBarProps) {
+  const { t } = useI18n()
   const [query, setQuery] = useState(initialValue || '')
   const [results, setResults] = useState<Student[]>([])
   const [open, setOpen] = useState(false)
@@ -120,7 +122,7 @@ export function SearchBar({ onSelectStudent, initialValue, onQueryChange }: Sear
           onChange={(e) => handleInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder="输入学员姓名搜索排课…"
+          placeholder={t('searchPlaceholder')}
           className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent transition-all"
         />
         {loading && (
@@ -152,7 +154,7 @@ export function SearchBar({ onSelectStudent, initialValue, onQueryChange }: Sear
 
       {open && !loading && results.length === 0 && query.trim() && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg px-4 py-3 text-sm text-slate-400">
-          未找到匹配的学员
+          {t('searchNoResult')}
         </div>
       )}
     </div>

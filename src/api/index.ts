@@ -1,5 +1,6 @@
 // API 调用层 —— 直接请求后端 Edge Functions
 import type { Schedule, Student } from '@/types'
+import { t } from '@/i18n'
 
 const API_BASE = '/api'
 
@@ -19,17 +20,17 @@ async function request<T>(
       signal: AbortSignal.timeout(10000),
     })
   } catch (e) {
-    throw new Error('网络请求失败，请检查网络连接')
+    throw new Error(t('apiNetworkError'))
   }
 
   const contentType = resp.headers.get('content-type') || ''
   if (!contentType.includes('application/json')) {
-    throw new Error('服务暂不可用，请稍后重试')
+    throw new Error(t('apiServerError'))
   }
 
   const json = await resp.json()
   if (json.code !== 0) {
-    throw new Error(json.message || '请求失败')
+    throw new Error(json.message || t('apiRequestFailed'))
   }
   return json.data as T
 }

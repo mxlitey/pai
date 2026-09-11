@@ -2,7 +2,7 @@ import type { Schedule } from '@/types'
 import { formatDate } from '@/utils/date'
 import { ScheduleCard } from '../ScheduleCard'
 import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { useI18n } from '@/i18n'
 
 interface DayViewProps {
   currentDate: Date
@@ -10,14 +10,15 @@ interface DayViewProps {
   onScheduleClick: (schedule: Schedule) => void
 }
 
-// 时间段定义
+// 时间段定义（label 为翻译 key）
 const TIME_SLOTS = [
-  { label: '上午', range: '08:00 - 12:00', filter: (t: string) => t < '12:00' },
-  { label: '下午', range: '14:00 - 17:30', filter: (t: string) => t >= '12:00' && t < '18:00' },
-  { label: '晚上', range: '19:00 - 20:30', filter: (t: string) => t >= '18:00' },
+  { labelKey: 'dayMorning' as const, range: '08:00 - 12:00', filter: (t: string) => t < '12:00' },
+  { labelKey: 'dayAfternoon' as const, range: '14:00 - 17:30', filter: (t: string) => t >= '12:00' && t < '18:00' },
+  { labelKey: 'dayEvening' as const, range: '19:00 - 20:30', filter: (t: string) => t >= '18:00' },
 ]
 
 export function DayView({ currentDate, schedules, onScheduleClick }: DayViewProps) {
+  const { lang, locale, t } = useI18n()
   const dayStr = formatDate(currentDate)
   const daySchedules = schedules
     .filter((s) => s.date === dayStr)
@@ -28,10 +29,10 @@ export function DayView({ currentDate, schedules, onScheduleClick }: DayViewProp
       {/* 日期头部 */}
       <div className="px-5 py-4 border-b border-slate-200 bg-gradient-to-r from-brand-50 to-transparent">
         <div className="text-lg font-semibold text-slate-800">
-          {format(currentDate, 'yyyy年M月d日 EEEE', { locale: zhCN })}
+          {format(currentDate, lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMM d, yyyy', { locale })}
         </div>
         <div className="text-sm text-slate-500 mt-0.5">
-          共 {daySchedules.length} 节课
+          {t('dayTotalLessons').replace('{n}', String(daySchedules.length))}
         </div>
       </div>
 
@@ -42,7 +43,7 @@ export function DayView({ currentDate, schedules, onScheduleClick }: DayViewProp
             <svg className="w-12 h-12 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
-            <span className="text-sm">今日无排课</span>
+            <span className="text-sm">{t('dayNoSchedule')}</span>
           </div>
         ) : (
           <div className="space-y-6">
@@ -50,11 +51,11 @@ export function DayView({ currentDate, schedules, onScheduleClick }: DayViewProp
               const slotSchedules = daySchedules.filter((s) => slot.filter(s.startTime))
               if (slotSchedules.length === 0) return null
               return (
-                <div key={slot.label}>
+                <div key={slot.labelKey}>
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="text-sm font-medium text-slate-700">{slot.label}</span>
+                    <span className="text-sm font-medium text-slate-700">{t(slot.labelKey)}</span>
                     <div className="flex-1 h-px bg-slate-100" />
-                    <span className="text-xs text-slate-400">{slotSchedules.length}节</span>
+                    <span className="text-xs text-slate-400">{slotSchedules.length}{t('dayLessonShort')}</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pl-4">
                     {slotSchedules.map((s) => (

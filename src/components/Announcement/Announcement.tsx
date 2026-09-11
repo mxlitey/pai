@@ -3,6 +3,7 @@ import remarkGfm from 'remark-gfm'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { parseDate } from '@/utils/date'
+import { useI18n } from '@/i18n'
 
 interface AnnouncementProps {
   // 公告内容（Markdown 文本，来自后端 API 异步加载），为空字符串时不渲染
@@ -21,6 +22,7 @@ interface AnnouncementProps {
 // - bare=true 时仅渲染正文，便于嵌入弹窗等已有外壳的容器
 // - 默认模式头部样式：图标 + 标题 + 发布时间，与公告弹窗对齐
 export function Announcement({ content, updatedAt, bare = false }: AnnouncementProps) {
+  const { t } = useI18n()
   if (!content) return null
 
   const markdown = (
@@ -163,7 +165,7 @@ export function Announcement({ content, updatedAt, bare = false }: AnnouncementP
             d="M3 11l13-5v12L3 13v-2zm13-4.5a3.5 3.5 0 010 9M6 13v5a1 1 0 001 1h1a1 1 0 001-1v-4"
           />
         </svg>
-        <span className="text-sm font-semibold text-slate-700">公告</span>
+        <span className="text-sm font-semibold text-slate-700">{t('annTitle')}</span>
         {updatedAt && (
           <span className="text-xs text-slate-400 truncate">
             {format(parseDate(updatedAt), 'yyyy-MM-dd HH:mm', { locale: zhCN })}

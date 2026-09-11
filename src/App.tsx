@@ -23,7 +23,9 @@ import { DayView } from '@/components/Calendar/DayView'
 import { AdminPanel } from '@/components/Admin/AdminPanel'
 import { Home } from '@/components/Home/Home'
 import { Announcement } from '@/components/Announcement/Announcement'
-import { APP_NAME, FOOTER_TEXT, GITHUB_URL } from '@/config'
+import { LanguageSwitch } from '@/i18n/LanguageSwitch'
+import { useI18n } from '@/i18n'
+import { APP_NAME, GITHUB_URL } from '@/config'
 
 // 页面模式：首页 / 日历视图（二级页） / 后台管理
 type PageMode = 'home' | 'calendar' | 'admin'
@@ -65,6 +67,7 @@ function writeNavUrl(page: PageMode, studentId?: string | null) {
 }
 
 export default function App() {
+  const { lang, locale, t } = useI18n()
   // page 初始值由 URL 决定，刷新后不会被重置
   const [page, setPage] = useState<PageMode>(readPageFromUrl)
   const [view, setView] = useState<ViewMode>('month')
@@ -206,11 +209,11 @@ export default function App() {
       setSchedules(data)
     } catch (e) {
       setSchedules([])
-      setLoadError((e as Error).message || '加载排课数据失败')
+      setLoadError((e as Error).message || t('appLoadErrorDetail'))
     } finally {
       setLoading(false)
     }
-  }, [selectedStudent?.id, dateRange])
+  }, [selectedStudent?.id, dateRange, t])
 
   useEffect(() => {
     loadSchedules()
@@ -287,7 +290,7 @@ export default function App() {
               <button
                 onClick={() => setPage('home')}
                 className="btn-ghost -ml-2 px-2"
-                title="返回首页"
+                title={t('appBackHome')}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -297,6 +300,7 @@ export default function App() {
             </div>
             <div className="flex items-center gap-2">
               <SearchBar onSelectStudent={handleSelectStudent} />
+              <LanguageSwitch />
             </div>
           </div>
         </div>
@@ -336,12 +340,12 @@ export default function App() {
               <div className="flex items-center gap-4 text-sm">
                 <div className="text-center">
                   <div className="font-semibold text-brand-600">{stats.count}</div>
-                  <div className="text-xs text-slate-400">排课</div>
+                  <div className="text-xs text-slate-400">{t('appStatCount')}</div>
                 </div>
                 <div className="w-px h-8 bg-slate-100" />
                 <div className="text-center">
                   <div className="font-semibold text-brand-600">{stats.courses}</div>
-                  <div className="text-xs text-slate-400">课程</div>
+                  <div className="text-xs text-slate-400">{t('appStatCourses')}</div>
                 </div>
               </div>
             )}
@@ -352,8 +356,8 @@ export default function App() {
               <svg className="w-14 h-14 mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              <p className="text-sm">请在上方搜索栏输入学员姓名，查看排课日历</p>
-              <p className="text-xs mt-1 text-slate-300">支持精确查询与模糊搜索</p>
+              <p className="text-sm">{t('appEmptyTitle')}</p>
+              <p className="text-xs mt-1 text-slate-300">{t('appEmptyHint')}</p>
             </div>
           </div>
         )}
@@ -365,7 +369,7 @@ export default function App() {
             <div className="mb-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <h2 className="text-xl font-semibold text-slate-800">
-                  {getViewTitle(currentDate, view)}
+                  {getViewTitle(currentDate, view, locale, lang)}
                 </h2>
                 <CalendarToolbar
                   currentDate={currentDate}
@@ -380,7 +384,7 @@ export default function App() {
             {loading ? (
               <div className="card p-16 flex flex-col items-center justify-center">
                 <div className="w-10 h-10 border-2 border-slate-200 border-t-brand-500 rounded-full animate-spin mb-3" />
-                <span className="text-sm text-slate-400">加载排课数据…</span>
+                <span className="text-sm text-slate-400">{t('appLoading')}</span>
               </div>
             ) : loadError ? (
               <div className="card p-16 flex flex-col items-center justify-center">
@@ -389,7 +393,7 @@ export default function App() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <p className="text-sm text-rose-600 mb-1">加载失败</p>
+                <p className="text-sm text-rose-600 mb-1">{t('appLoadError')}</p>
                 <p className="text-xs text-slate-400">{loadError}</p>
               </div>
             ) : (
@@ -423,7 +427,7 @@ export default function App() {
 
       {/* 底部 */}
       <footer className="border-t border-slate-200 py-3 text-center text-xs text-slate-400">
-        <span>{FOOTER_TEXT}</span>
+        <span>{t('footerText')}</span>
         {GITHUB_URL && (
           <>
             <span className="mx-2">·</span>
@@ -476,7 +480,7 @@ export default function App() {
                     d="M3 11l13-5v12L3 13v-2zm13-4.5a3.5 3.5 0 010 9M6 13v5a1 1 0 001 1h1a1 1 0 001-1v-4"
                   />
                 </svg>
-                <h3 className="font-semibold text-base text-slate-800">公告</h3>
+                <h3 className="font-semibold text-base text-slate-800">{t('appAnnTitle')}</h3>
                 {announcement.updatedAt && (
                   <span className="text-xs text-slate-400 truncate">
                     {format(parseDate(announcement.updatedAt), 'yyyy-MM-dd HH:mm', {
@@ -510,7 +514,7 @@ export default function App() {
                 onClick={() => setShowAnnouncement(false)}
                 className="btn-ghost"
               >
-                我知道了
+                {t('appAnnGotIt')}
               </button>
             </div>
           </div>

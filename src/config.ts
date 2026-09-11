@@ -8,6 +8,3 @@ export const APP_NAME =
 
 // GitHub 项目链接（硬编码为本仓库地址，页脚展示 GitHub 入口）
 export const GITHUB_URL = 'https://github.com/mxlitey/pai'
-
-// 页脚文字
-export const FOOTER_TEXT = '排课系统'

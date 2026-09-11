@@ -1,6 +1,7 @@
 import type { Schedule } from '@/types'
 import { cn } from '@/utils/cn'
 import { getCourseCardClass } from '@/utils/courseColors'
+import { useI18n } from '@/i18n'
 
 interface ScheduleCardProps {
   schedule: Schedule
@@ -10,6 +11,7 @@ interface ScheduleCardProps {
 
 export function ScheduleCard({ schedule, compact = false, onClick }: ScheduleCardProps) {
   const colorClass = getCourseCardClass(schedule.color)
+  const { t } = useI18n()
 
   if (compact) {
     // 月视图中的紧凑卡片
@@ -58,7 +60,7 @@ export function ScheduleCard({ schedule, compact = false, onClick }: ScheduleCar
               schedule.attendance === 'attended' ? 'bg-green-600' : 'bg-rose-600',
             )}
           >
-            {schedule.attendance === 'attended' ? '✓ 到课' : '✕ 缺勤'}
+            {schedule.attendance === 'attended' ? '✓ ' + t('cardAttended') : '✕ ' + t('cardAbsent')}
           </span>
         )}
       </div>

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import type { Schedule } from '@/types'
 import { parseDate } from '@/utils/date'
 import { format } from 'date-fns'
-import { zhCN } from 'date-fns/locale'
+import { useI18n } from '@/i18n'
 
 interface ScheduleDetailProps {
   schedule: Schedule | null
@@ -10,6 +10,8 @@ interface ScheduleDetailProps {
 }
 
 export function ScheduleDetail({ schedule, onClose }: ScheduleDetailProps) {
+  const { lang, locale, t } = useI18n()
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -23,12 +25,22 @@ export function ScheduleDetail({ schedule, onClose }: ScheduleDetailProps) {
   const date = parseDate(schedule.date)
 
   const fields = [
-    { label: '课程名称', value: schedule.courseName },
-    { label: '日期', value: format(date, 'yyyy年M月d日 EEEE', { locale: zhCN }) },
-    { label: '时间', value: `${schedule.startTime} - ${schedule.endTime}` },
-    { label: '到课状态', value: attendanceText(schedule.attendance) },
-    { label: '学员姓名', value: schedule.studentName },
+    { label: t('detailCourseName'), value: schedule.courseName },
+    {
+      label: t('detailDate'),
+      value: format(date, lang === 'zh' ? 'yyyy年M月d日 EEEE' : 'EEEE, MMM d, yyyy', { locale }),
+    },
+    { label: t('detailTime'), value: `${schedule.startTime} - ${schedule.endTime}` },
+    { label: t('detailAttendance'), value: attendanceText(schedule.attendance) },
+    { label: t('detailStudentName'), value: schedule.studentName },
   ]
+
+  // 点名状态文案：attendance 缺省视为未点名
+  function attendanceText(attendance?: Schedule['attendance']): string {
+    if (attendance === 'attended') return t('detailAttended')
+    if (attendance === 'absent') return t('detailAbsent')
+    return t('detailNone')
+  }
 
   return (
     <div
@@ -41,11 +53,11 @@ export function ScheduleDetail({ schedule, onClose }: ScheduleDetailProps) {
       >
         {/* 头部 */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="font-semibold text-base text-slate-800">排课详情</h3>
+          <h3 className="font-semibold text-base text-slate-800">{t('detailTitle')}</h3>
           <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-            aria-label="关闭"
+            aria-label={t('detailClose')}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -67,7 +79,7 @@ export function ScheduleDetail({ schedule, onClose }: ScheduleDetailProps) {
           ))}
           {schedule.note && (
             <div className="flex items-start gap-4">
-              <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-0.5">备注</span>
+              <span className="text-sm text-slate-400 w-20 flex-shrink-0 pt-0.5">{t('detailNote')}</span>
               <span className="text-sm text-slate-600 flex-1">{schedule.note}</span>
             </div>
           )}
@@ -76,17 +88,10 @@ export function ScheduleDetail({ schedule, onClose }: ScheduleDetailProps) {
         {/* 底部 */}
         <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-end">
           <button onClick={onClose} className="btn-ghost">
-            关闭
+            {t('detailClose')}
           </button>
         </div>
       </div>
     </div>
   )
-}
-
-// 点名状态文案：attendance 缺省视为未点名
-function attendanceText(attendance?: Schedule['attendance']): string {
-  if (attendance === 'attended') return '到课'
-  if (attendance === 'absent') return '缺勤'
-  return '未点名'
 }
